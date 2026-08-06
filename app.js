@@ -82,6 +82,8 @@
   let cloudCredentials = loadCloudCredentials();
   const cloudPinStates = new Map();
   const deviceId = loadDeviceId();
+  ensureOperationalKeys();
+  save();
   let page = "home";
   let cart = {};
   let guestCart = {};
@@ -168,6 +170,36 @@
   async function syncUserRanking(id,pin){if(!pin)return false;const payload=state.orders.filter(o=>o.type==="user"&&Number(o.userId)===Number(id)).slice(0,200).map(rankingPayloadForOrder);try{return await cloudRpc("sync_user_ranking_orders",{p_user_id:Number(id),p_pin:pin,payload})}catch{return false}}
   async function syncAdminRanking(){if(!cloudCredentials.adminPin)return false;const payload=state.orders.filter(o=>o.type==="user").slice(0,500).map(rankingPayloadForOrder);try{return await cloudRpc("sync_admin_ranking_orders",{p_admin_pin:cloudCredentials.adminPin,payload})}catch{return false}}
   async function loadCloudRanking(){const response=await fetch(`${SUPABASE_URL}/rest/v1/ranking_orders?select=user_id,status,total,bread_qty,badjia_qty,drink_qty`,{headers:{apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${SUPABASE_ANON_KEY}`}});if(!response.ok)throw new Error("Hall indisponível");return response.json()}
+  function stableSyncKey(kind,row){return row.syncKey||`${deviceId}:${kind}:${row.id||Date.parse(row.date)||Date.now()}:${Date.parse(row.date)||0}`}
+  function ensureOperationalKeys(){
+    state.orders=(state.orders||[]).map(row=>({...row,syncKey:stableSyncKey("order",row)}));
+    state.recharges=(state.recharges||[]).map(row=>({...row,syncKey:stableSyncKey("recharge",row)}));
+    state.donationPledges=(state.donationPledges||[]).map(row=>{const order=row.orderId?state.orders.find(o=>Number(o.id)===Number(row.orderId)):null;return {...row,syncKey:stableSyncKey("donation",row),orderSyncKey:row.orderSyncKey||order?.syncKey||null}});
+  }
+  function operationalSettingsPayload(){return {guestOrdering:Boolean(state.settings.guestOrdering),balancePolicy:state.settings.balancePolicy,donationDay:Number(state.settings.donationDay)||5,donationGoal:state.settings.donationGoal}}
+  function operationalOrderPayload(o){return {sync_key:stableSyncKey("order",o),order_type:o.type,user_id:o.userId||null,guest_name:o.guestName||null,guest_phone:o.guestPhone||null,ordered_at:o.date,status:o.status,items:o.items||[],custom_request:o.customRequest||"",custom_price:Number(o.customPrice||0),needs_contact:Boolean(o.needsContact),guest_donation:Number(o.guestDonation||0),updated_at:o.updatedAt||o.priceAdjustedAt||o.date}}
+  function operationalDonationPayload(p){return {sync_key:stableSyncKey("donation",p),order_sync_key:p.orderSyncKey||null,user_id:p.userId||null,donor_name:p.name||"Convidado",amount:Number(p.amount||0),created_at:p.date,updated_at:p.updatedAt||p.date}}
+  function mergeCloudSettings(settings){if(!settings)return;Object.assign(state.settings,{guestOrdering:Boolean(settings.guestOrdering),balancePolicy:settings.balancePolicy||"allow-negative",donationDay:Number(settings.donationDay)||5,donationGoal:settings.donationGoal||state.settings.donationGoal,cloudOperationalUpdatedAt:settings.updatedAt})}
+  function mergeCloudUser(cloudUser){if(!cloudUser)return;const local=user(cloudUser.id),updates={name:cloudUser.name,avatar:cloudUser.avatar,active:cloudUser.active};if(cloudUser.monthlyBalance!=null)updates.monthlyBalance=Number(cloudUser.monthlyBalance||0);if("balanceResetAt" in cloudUser)updates.balanceResetAt=cloudUser.balanceResetAt;if(cloudUser.updatedAt)updates.cloudUpdatedAt=cloudUser.updatedAt;if(local)Object.assign(local,updates);else state.users.push({...cloudUser,...updates,pin:"",pinConfigured:true,monthlyBalance:Number(cloudUser.monthlyBalance||0)})}
+  async function syncUserOperational(id,pin){
+    if(!pin)return false;ensureOperationalKeys();
+    const payload={orders:state.orders.filter(o=>o.type==="user"&&Number(o.userId)===Number(id)).map(operationalOrderPayload),donations:(state.donationPledges||[]).filter(p=>Number(p.userId)===Number(id)).map(operationalDonationPayload)};
+    try{return await cloudRpc("sync_user_operational_state",{p_user_id:Number(id),p_pin:pin,payload})}catch{return false}
+  }
+  async function syncAdminOperational(){
+    if(!cloudCredentials.adminPin)return false;ensureOperationalKeys();
+    const payload={settings:operationalSettingsPayload(),users:state.users.filter(u=>!u.legacyHidden).map(u=>({user_id:Number(u.id),monthly_balance:Number(u.monthlyBalance||0),balance_reset_at:u.balanceResetAt||null,active:Boolean(u.active)})),orders:state.orders.map(operationalOrderPayload),recharges:(state.recharges||[]).map(r=>({sync_key:stableSyncKey("recharge",r),user_id:Number(r.userId),created_at:r.date,amount:Number(r.amount||0),note:r.note||"Recarga"})),donations:(state.donationPledges||[]).map(operationalDonationPayload)};
+    try{return await cloudRpc("admin_sync_operational_state",{p_admin_pin:cloudCredentials.adminPin,payload})}catch{return false}
+  }
+  async function hydrateUserOperational(id,pin){
+    try{const cloud=await cloudRpc("load_user_operational_state",{p_user_id:Number(id),p_pin:pin});if(!cloud)return false;mergeCloudUser(cloud.user);mergeCloudSettings(cloud.settings);state.orders=[...state.orders.filter(o=>!(o.type==="user"&&Number(o.userId)===Number(id))),...(cloud.orders||[])];state.recharges=[...state.recharges.filter(r=>Number(r.userId)!==Number(id)),...(cloud.recharges||[])];state.donationPledges=[...(state.donationPledges||[]).filter(p=>Number(p.userId)!==Number(id)),...(cloud.donations||[])];ensureOperationalKeys();save();return true}catch{return false}
+  }
+  async function hydratePublicBootstrap(){try{const cloud=await cloudRpc("load_public_app_bootstrap",{});if(!cloud)return false;(cloud.users||[]).forEach(mergeCloudUser);mergeCloudSettings(cloud.settings);save();return true}catch{return false}}
+  async function hydrateAdminOperational(pin=cloudCredentials.adminPin){
+    try{let cloud=await cloudRpc("load_admin_operational_state",{p_admin_pin:pin});if(!cloud)return false;const cloudEmpty=!(cloud.orders||[]).length&&!(cloud.recharges||[]).length&&!(cloud.donations||[]).length&&!(cloud.users||[]).some(u=>Number(u.monthlyBalance||0)>0);const localHasData=state.orders.length||state.recharges.length||state.donationPledges.length||state.users.some(u=>Number(u.monthlyBalance||0)>0);if(cloudEmpty&&localHasData){await syncAdminOperational();cloud=await cloudRpc("load_admin_operational_state",{p_admin_pin:pin})||cloud}(cloud.users||[]).forEach(mergeCloudUser);mergeCloudSettings(cloud.settings);state.orders=cloud.orders||[];state.recharges=cloud.recharges||[];state.donationPledges=cloud.donations||[];ensureOperationalKeys();save();return true}catch{return false}
+  }
+  async function submitGuestOperational(order){try{const id=await cloudRpc("submit_guest_order",{payload:{syncKey:order.syncKey,guestName:order.guestName,guestPhone:order.guestPhone,date:order.date,items:order.items||[],customRequest:order.customRequest||"",needsContact:Boolean(order.needsContact)}});if(!id)return false;order.id=Number(id);save();return true}catch{return false}}
+  async function syncGuestDonationOperational(pledge){try{return await cloudRpc("sync_guest_donation",{payload:{syncKey:pledge.syncKey,orderSyncKey:pledge.orderSyncKey||null,donorName:pledge.name||"Convidado",amount:Number(pledge.amount||0),date:pledge.date}})}catch{return false}}
   function toast(text){const e=$("#toast");e.textContent="";requestAnimationFrame(()=>{e.textContent=text;e.classList.add("show")});clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),3600)}
   function openModal(html,onClose=null){const modal=$("#modal"),sheet=$(".sheet"),wasOpen=modal.classList.contains("open");if(!wasOpen)modalOpener=document.activeElement;modalCloseAction=onClose;$("#modalContent").innerHTML=`<div class="modal-brand"><span aria-hidden="true">🍞</span><strong>O Pão de Cada Dia</strong><button class="modal-close" data-close aria-label="Fechar janela"><span aria-hidden="true">×</span></button></div><div class="modal-body">${html}</div>`;const heading=$("#modalContent h3");if(heading){heading.id="modalTitle";heading.tabIndex=-1;sheet.setAttribute("aria-labelledby","modalTitle");sheet.removeAttribute("aria-label")}else{sheet.removeAttribute("aria-labelledby");sheet.setAttribute("aria-label","Janela de diálogo")}modal.classList.add("open");modal.setAttribute("aria-hidden","false");app.inert=true;document.body.classList.add("modal-open");requestAnimationFrame(()=>{(heading||sheet)?.focus()})}
   function closeModal(){const modal=$("#modal");if(!modal.classList.contains("open"))return;const fallback=modalCloseAction;modalCloseAction=null;modal.classList.remove("open");modal.setAttribute("aria-hidden","true");app.inert=false;document.body.classList.remove("modal-open");const restore=modalOpener;modalOpener=null;if(fallback){requestAnimationFrame(fallback);return}if(restore?.isConnected)requestAnimationFrame(()=>restore.focus())}
@@ -472,7 +504,7 @@
     if(invalid){invalid.setAttribute("aria-invalid","true");invalid.focus();toast("Preenche todos os valores cobrados antes de imprimir, boss.");return false}
     inputs.forEach(input=>{const order=state.orders.find(o=>o.id===Number(input.dataset.orderId)),value=Math.max(0,Number(input.value)||0);if(!order)return;if(input.dataset.customPrice)order.customPrice=value;else if(order.items[Number(input.dataset.itemIndex)])order.items[Number(input.dataset.itemIndex)].unitPrice=value});
     receiptOrders(dateKey).forEach(order=>{order.needsContact=(order.items||[]).some(item=>itemPrice(item)<=0)||Boolean(order.customRequest&&Number(order.customPrice||0)<=0);order.priceAdjustedAt=new Date().toISOString()});
-    save();syncAdminRanking();return true;
+    save();syncAdminOperational();syncAdminRanking();return true;
   }
   function receiptAmount(total,uncertain){return uncertain?(total>0?`${fmt(total)} MT + confirmar`:"A confirmar"):`${fmt(total)} MT`}
   function dailyReceiptBody(dateKey){
@@ -592,8 +624,8 @@
     const total=items.reduce((s,i)=>s+itemPrice(i)*i.qty,0),u=activeUser(),available=userAvailable(u.id),insufficient=total>available;
     if(insufficient&&!forceDebt){balanceRuleModal(total,available);return}
     if(insufficient&&state.settings.balancePolicy==="block"){balanceRuleModal(total,available);return}
-    const order={id:Math.max(0,...state.orders.map(o=>o.id))+1,type:"user",userId:u.id,date:new Date().toISOString(),status:insufficient?"debt":"pending",items,customRequest:special,needsContact:items.some(i=>product(i.productId)?.contactForFlavor||i.unitPrice===0)||Boolean(special)};
-    state.orders.unshift(order);cart={};cartChoices={};customRequest="";customOpen.user=false;save();syncUserRanking(u.id,cloudCredentials.userPin);closeModal();page="home";render();celebrateOrder();if(insufficient)orderStatusFeedback("debt",order);
+    const order={id:Math.max(0,...state.orders.map(o=>o.id))+1,type:"user",userId:u.id,date:new Date().toISOString(),status:insufficient?"debt":"pending",items,customRequest:special,needsContact:items.some(i=>product(i.productId)?.contactForFlavor||i.unitPrice===0)||Boolean(special)};order.syncKey=stableSyncKey("order",order);
+    state.orders.unshift(order);cart={};cartChoices={};customRequest="";customOpen.user=false;save();syncUserOperational(u.id,cloudCredentials.userPin);syncUserRanking(u.id,cloudCredentials.userPin);closeModal();page="home";render();celebrateOrder();if(insufficient)orderStatusFeedback("debt",order);
   }
 
   document.addEventListener("click",async e=>{
@@ -608,8 +640,8 @@
     if(e.target.closest("[data-close]")){closeModal();return}
     if(e.target.closest("[data-logout]")){logout();return}
 
-    const up=e.target.closest("[data-user-page]");if(up){page=up.dataset.userPage;renderWithFocus(`[data-user-page="${page}"]`);return}
-    const ad=e.target.closest("[data-admin-section]");if(ad){adminSection=ad.dataset.adminSection;if(adminSection==="users")await loadAdminPinStates();renderWithFocus(`[data-admin-section="${adminSection}"]`);return}
+    const up=e.target.closest("[data-user-page]");if(up){page=up.dataset.userPage;if(cloudCredentials.userPin)await hydrateUserOperational(state.session.userId,cloudCredentials.userPin);renderWithFocus(`[data-user-page="${page}"]`);return}
+    const ad=e.target.closest("[data-admin-section]");if(ad){adminSection=ad.dataset.adminSection;if(adminSection==="users")await loadAdminPinStates();await hydrateAdminOperational();renderWithFocus(`[data-admin-section="${adminSection}"]`);return}
     const cat=e.target.closest("[data-category]");if(cat){category=cat.dataset.category;renderWithFocus(`[data-category="${category}"]`);return}
     const of=e.target.closest("[data-order-filter]");if(of){orderFilter=of.dataset.orderFilter;renderWithFocus(`[data-order-filter="${orderFilter}"]`);return}
     const customToggle=e.target.closest("[data-toggle-custom]");if(customToggle){const mode=customToggle.dataset.toggleCustom;customOpen[mode]=!customOpen[mode];renderWithFocus(`[data-toggle-custom="${mode}"]`);return}
@@ -649,11 +681,11 @@
       const verified=await cloudRpc("verify_user_pin",{p_user_id:u.id,p_pin:pin}).catch(()=>"offline");
       if(verified!=="ok"){if(verified==="locked")cloudPinStates.set(Number(u.id),"locked");toast(verified==="locked"?"Muitas tentativas. A conta ficou bloqueada por 15 minutos.":verified==="offline"?"Sem ligação ao servidor. Tenta novamente.":"Eish, boss! Esse PIN não bate.");refreshLoginPinFields();return}
       u.pin="";u.pinConfigured=true;u.pinSetAt=new Date().toISOString();storeCloudCredentials({mode:"user",userId:u.id,userPin:pin});save();
-      state.session={mode:"user",userId:u.id};save();syncUserRanking(u.id,pin);closeModal();page="home";render();return;
+      state.session={mode:"user",userId:u.id};save();await syncUserOperational(u.id,pin);await hydrateUserOperational(u.id,pin);syncUserRanking(u.id,pin);closeModal();page="home";render();return;
     }
     if(e.target.id==="confirmAdminLogin"){
       const adminPin=$("#adminPin").value;if(adminPin!==state.settings.adminPin){toast("Esse PIN não abre o mambo, boss.");return}
-      storeCloudCredentials({mode:"admin",adminPin});state.session={mode:"admin",userId:null};save();await loadAdminPinStates();await syncAdminRanking();closeModal();adminSection="dashboard";render();return;
+      storeCloudCredentials({mode:"admin",adminPin});state.session={mode:"admin",userId:null};save();await loadAdminPinStates();const loaded=await hydrateAdminOperational(adminPin);if(!loaded){storeCloudCredentials({});state.session={mode:null,userId:null};save();toast("Não deu para carregar os dados partilhados.");return}await syncAdminRanking();closeModal();adminSection="dashboard";render();return;
     }
     if(e.target.id==="submitUserOrder"){placeUserOrder();return}
     if(e.target.id==="confirmDebtOrder"){placeUserOrder(true);return}
@@ -662,8 +694,8 @@
       if(!name){toast("Diz o teu nome primeiro, boss.");return}
       const items=Object.entries(guestCart).filter(([id,q])=>q>0&&canOrderProduct(product(id))).map(([id,qty])=>{const p=product(id);return {productId:Number(id),qty,choices:{...selectedChoices(p,"guest")},unitPrice:selectedUnitPrice(p,"guest")}});
       const special=guestCustomRequest.trim();if(!items.length&&!special){guestCart={};render();toast("Esse food hoje bazou. Escolhe outro, boss.");return}
-      const order={id:Math.max(0,...state.orders.map(o=>o.id))+1,type:"guest",guestName:name,guestPhone:phone,date:new Date().toISOString(),status:"pending",items,customRequest:special,needsContact:items.some(i=>product(i.productId)?.contactForFlavor||i.unitPrice===0)||Boolean(special),guestDonation:0};
-      state.orders.unshift(order);guestCart={};guestCartChoices={};guestCustomRequest="";customOpen.guest=false;save();guestDonationModal(order);celebrateOrder();return;
+      const order={id:Math.max(0,...state.orders.map(o=>o.id))+1,type:"guest",guestName:name,guestPhone:phone,date:new Date().toISOString(),status:"pending",items,customRequest:special,needsContact:items.some(i=>product(i.productId)?.contactForFlavor||i.unitPrice===0)||Boolean(special),guestDonation:0};order.syncKey=stableSyncKey("order",order);
+      state.orders.unshift(order);guestCart={};guestCartChoices={};guestCustomRequest="";customOpen.guest=false;save();const submitted=await submitGuestOperational(order);if(!submitted){toast("O pedido ficou neste aparelho, mas ainda não chegou ao servidor. Verifica a ligação.")}guestDonationModal(order);celebrateOrder();return;
     }
 
     const ao=e.target.closest("[data-admin-order]");if(ao){editOrderModal(ao.dataset.adminOrder);return}
@@ -671,7 +703,7 @@
       const o=state.orders.find(x=>x.id===Number(e.target.dataset.id));if(!o)return;
       const previousStatus=o.status,inputs=$$('[data-order-price]'),status=$("#orderStatus").value,unpriced=inputs.find(input=>(Number(input.value)||0)<=0);if(status==="paid"&&unpriced){unpriced.focus();toast("Define todos os preços antes de marcar como pago, boss.");return}
       inputs.forEach(input=>{const value=Math.max(0,Number(input.value)||0);if(input.hasAttribute("data-custom-price"))o.customPrice=value;else if(o.items[Number(input.dataset.itemIndex)])o.items[Number(input.dataset.itemIndex)].unitPrice=value});
-      o.status=status;o.needsContact=(o.items||[]).some(item=>itemPrice(item)<=0)||Boolean(o.customRequest&&Number(o.customPrice||0)<=0);o.priceAdjustedAt=new Date().toISOString();save();syncAdminRanking();closeModal();render();if(status!==previousStatus&&(status==="paid"||status==="debt")){orderStatusFeedback(status,o)}else toast("Pedido e preços atualizados. Está nice! 🧾");return
+      o.status=status;o.needsContact=(o.items||[]).some(item=>itemPrice(item)<=0)||Boolean(o.customRequest&&Number(o.customPrice||0)<=0);o.priceAdjustedAt=new Date().toISOString();o.updatedAt=o.priceAdjustedAt;save();syncAdminOperational();syncAdminRanking();closeModal();render();if(status!==previousStatus&&(status==="paid"||status==="debt")){orderStatusFeedback(status,o)}else toast("Pedido e preços atualizados. Está nice! 🧾");return
     }
     if(e.target.id==="newProduct"){productModal();return}
     const ep=e.target.closest("[data-edit-product]");if(ep){productModal(Number(ep.dataset.editProduct));return}
@@ -684,12 +716,12 @@
     }
     if(e.target.id==="newUser"){userModal();return}
     const eu=e.target.closest("[data-edit-user]");if(eu){userModal(Number(eu.dataset.editUser));return}
-    const tu=e.target.closest("[data-toggle-user]");if(tu){const u=user(tu.dataset.toggleUser);u.active=!u.active;save();render();return}
+    const tu=e.target.closest("[data-toggle-user]");if(tu){const u=user(tu.dataset.toggleUser);u.active=!u.active;u.updatedAt=new Date().toISOString();save();syncAdminOperational();render();return}
     if(e.target.id==="saveUser"){
       const id=Number(e.target.dataset.id),name=$("#userName").value.trim(),avatar=$("#userAvatar").value.trim()||"🙂",monthlyBalance=Number($("#userBalance").value);
       if(!name||monthlyBalance<0){toast("Preenche os dados corretamente.");return}
       const uid=id||Math.max(0,...state.users.map(u=>u.id))+1;if(id){Object.assign(user(id),{name,avatar,monthlyBalance})}else state.users.push({id:uid,name,avatar,pin:"",pinConfigured:false,monthlyBalance,active:true});
-      const cloudSaved=await cloudRpc("admin_upsert_app_user",{p_admin_pin:cloudCredentials.adminPin,p_user_id:uid,p_user_name:name,p_avatar:avatar}).catch(()=>false);if(!cloudSaved){toast("Não deu para guardar este utilizador no servidor.");return}cloudPinStates.set(uid,cloudPinStates.get(uid)||"unset");save();closeModal();render();toast("Utilizador guardado em todos os dispositivos.");return;
+      const cloudSaved=await cloudRpc("admin_upsert_app_user",{p_admin_pin:cloudCredentials.adminPin,p_user_id:uid,p_user_name:name,p_avatar:avatar}).catch(()=>false);if(!cloudSaved){toast("Não deu para guardar este utilizador no servidor.");return}const savedUser=user(uid);if(savedUser)savedUser.updatedAt=new Date().toISOString();cloudPinStates.set(uid,cloudPinStates.get(uid)||"unset");save();await syncAdminOperational();closeModal();render();toast("Utilizador e saldo guardados em todos os dispositivos.");return;
     }
     if(e.target.id==="resetUserPin"){
       const u=user(e.target.dataset.id);if(!u)return;
@@ -700,22 +732,22 @@
       const resetOk=await cloudRpc("reset_user_pin",{p_admin_pin:cloudCredentials.adminPin,p_user_id:u.id}).catch(()=>false);if(!resetOk){toast("Não deu para reiniciar o PIN no servidor.");return}u.pin="";u.pinConfigured=false;delete u.pinSetAt;cloudPinStates.set(Number(u.id),"unset");save();closeModal();render();toast(`PIN de ${u.name} reiniciado em todos os dispositivos.`);return;
     }
     const approvePin=e.target.closest("[data-approve-pin]");if(approvePin){const uid=Number(approvePin.dataset.approvePin),approved=await cloudRpc("approve_user_pin",{p_admin_pin:cloudCredentials.adminPin,p_user_id:uid}).catch(()=>false);if(!approved){toast("Não deu para aprovar este PIN.");return}cloudPinStates.set(uid,"active");render();toast(`PIN de ${user(uid)?.name||"utilizador"} aprovado. Já pode entrar! 🔐`);return}
-    if(e.target.id==="toggleGuest"){state.settings.guestOrdering=!state.settings.guestOrdering;save();render();toast(state.settings.guestOrdering?"Pedidos sem cadastro ativados.":"Pedidos sem cadastro desativados.");return}
-    const policy=e.target.closest("[data-balance-policy]");if(policy){state.settings.balancePolicy=policy.dataset.balancePolicy;save();render();toast(state.settings.balancePolicy==="block"?"Sem mola, o pedido fica bloqueado. 🛑":"Saldo negativo permitido. Entrou no território das dívidas. 😅");return}
+    if(e.target.id==="toggleGuest"){state.settings.guestOrdering=!state.settings.guestOrdering;save();syncAdminOperational();render();toast(state.settings.guestOrdering?"Pedidos sem cadastro ativados.":"Pedidos sem cadastro desativados.");return}
+    const policy=e.target.closest("[data-balance-policy]");if(policy){state.settings.balancePolicy=policy.dataset.balancePolicy;save();syncAdminOperational();render();toast(state.settings.balancePolicy==="block"?"Sem mola, o pedido fica bloqueado. 🛑":"Saldo negativo permitido. Entrou no território das dívidas. 😅");return}
     if(e.target.id==="saveDonationSettings"){
       const day=Math.min(28,Math.max(1,Number($("#donationDay").value)||5)),goal=$("#donationGoal").value.trim();
       if(!goal){toast("Escreve o objetivo da campanha.");return}
-      state.settings.donationDay=day;state.settings.donationGoal=goal;save();render();toast(`Campanha guardada para o dia ${day}. 🚗`);return;
+      state.settings.donationDay=day;state.settings.donationGoal=goal;save();syncAdminOperational();render();toast(`Campanha guardada para o dia ${day}. 🚗`);return;
     }
     const removePledge=e.target.closest("[data-remove-pledge]");if(removePledge){
       const pledge=state.donationPledges.find(p=>p.id===Number(removePledge.dataset.removePledge));
-      if(pledge?.orderId){const order=state.orders.find(o=>o.id===pledge.orderId);if(order)order.guestDonation=0}
-      state.donationPledges=state.donationPledges.filter(p=>p.id!==Number(removePledge.dataset.removePledge));save();render();toast(pledge?.userId?"Contribuição removida e saldo devolvido.":pledge?.orderId?"Contribuição removida do pedido.":"Contribuição diária removida.");return;
+      if(pledge?.orderId||pledge?.orderSyncKey){const order=state.orders.find(o=>Number(o.id)===Number(pledge.orderId)||o.syncKey===pledge.orderSyncKey);if(order){order.guestDonation=0;order.updatedAt=new Date().toISOString()}}
+      state.donationPledges=state.donationPledges.filter(p=>p.id!==Number(removePledge.dataset.removePledge));save();if(pledge?.syncKey)await cloudRpc("admin_delete_donation",{p_admin_pin:cloudCredentials.adminPin,p_sync_key:pledge.syncKey}).catch(()=>false);syncAdminOperational();render();toast(pledge?.userId?"Contribuição removida e saldo devolvido.":pledge?.orderId?"Contribuição removida do pedido.":"Contribuição diária removida.");return;
     }
     if(e.target.id==="ackDonation"){
       const amount=Number($("#donationRange")?.value||0),u=activeUser(),available=userAvailable(u.id);if(amount<=0)return;
       if(amount>available){toast("Eish, boss! Não há mola suficiente para essa txova.");return}
-      state.donationPledges.unshift({id:Date.now(),userId:u.id,name:u.name,amount,date:new Date().toISOString()});save();closeModal();render();toast(`${fmt(amount)} MT já txovaram o sonho! Ficaram ${fmt(userAvailable(u.id))} MT. 🥖💛`);return}
+      const pledge={id:Date.now(),userId:u.id,name:u.name,amount,date:new Date().toISOString()};pledge.syncKey=stableSyncKey("donation",pledge);state.donationPledges.unshift(pledge);save();syncUserOperational(u.id,cloudCredentials.userPin);closeModal();render();toast(`${fmt(amount)} MT já txovaram o sonho! Ficaram ${fmt(userAvailable(u.id))} MT. 🥖💛`);return}
     if(e.target.id==="skipGuestDonation"){const order=state.orders.find(o=>o.id===Number(e.target.dataset.order));if(order)guestOrderSuccess(order);return}
     if(e.target.id==="confirmGuestDonation"){
       const amount=Number($("#guestDonationRange")?.value||0),order=state.orders.find(o=>o.id===Number(e.target.dataset.order));if(!order||amount<=0)return;
@@ -724,7 +756,7 @@
     if(e.target.id==="startDailyGuestDonation"){const amount=Number($("#dailyGuestDonationRange")?.value||0);if(amount>0)donationPaymentModal(amount);return}
     if(e.target.id==="copyDonationNumber"){
       const amount=Number(e.target.dataset.amount),orderId=Number(e.target.dataset.order),order=orderId?state.orders.find(o=>o.id===orderId):null,name=order?.guestName||state.session.guestName||"Convidado";
-      if(!e.target.dataset.registered){if(order)order.guestDonation=amount;state.donationPledges.unshift({id:Date.now(),orderId:order?.id||null,userId:null,name,amount,date:new Date().toISOString()});save();e.target.dataset.registered="true"}
+      if(!e.target.dataset.registered){if(order)order.guestDonation=amount;const pledge={id:Date.now(),orderId:order?.id||null,orderSyncKey:order?.syncKey||null,userId:null,name,amount,date:new Date().toISOString()};pledge.syncKey=stableSyncKey("donation",pledge);state.donationPledges.unshift(pledge);save();syncGuestDonationOperational(pledge);e.target.dataset.registered="true"}
       const finish=$("#finishDonationPayment");finish.disabled=false;finish.textContent="TXOVA REGISTADA ✅";
       copyText(e.target.dataset.number).then(()=>{e.target.textContent="✅ NÚMERO COPIADO";toast(`${fmt(amount)} MT registados. Está nice, boss!`)}).catch(()=>{e.target.textContent="✅ TXOVA REGISTADA";toast("A txova entrou. Copia o número à mão, boss.")});return;
     }
@@ -733,7 +765,7 @@
     if(e.target.id==="saveRecharge"){
       const amount=Number($("#rechargeAmount").value),uid=Number($("#rechargeUser").value),note=$("#rechargeNote").value.trim()||"Recarga";
       if(amount<=0){toast("Mete uma mola válida, boss.");return}
-      state.recharges.unshift({id:Date.now(),userId:uid,date:new Date().toISOString(),amount,note});save();closeModal();render();toast("Mola adicionada. Está nice!");return;
+      const recharge={id:Date.now(),userId:uid,date:new Date().toISOString(),amount,note};recharge.syncKey=stableSyncKey("recharge",recharge);state.recharges.unshift(recharge);save();await syncAdminOperational();closeModal();render();toast("Mola adicionada em todos os dispositivos. Está nice!");return;
     }
     if(e.target.id==="resetDemo"){resetSystemConfirmModal();return}
     if(e.target.id==="confirmSystemReset"){closeModal();reset();toast("Dados locais limpos. Os dados partilhados no Supabase foram preservados. ♻️");return}
@@ -769,8 +801,13 @@
     state.session=currentSession;
     if($(".ranking-modal"))rankingModal();else render();
   });
+  let cloudRefreshBusy=false;
+  async function refreshOperationalState(){if(cloudRefreshBusy||document.hidden)return;cloudRefreshBusy=true;try{let refreshed=false;if(state.session.mode==="user"&&cloudCredentials.userPin)refreshed=await hydrateUserOperational(state.session.userId,cloudCredentials.userPin);else if(state.session.mode==="admin"&&cloudCredentials.adminPin)refreshed=await hydrateAdminOperational();else refreshed=await hydratePublicBootstrap();if(refreshed&&!$("#modal").classList.contains("open"))render()}finally{cloudRefreshBusy=false}}
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshOperationalState()});
+  setInterval(refreshOperationalState,20000);
   let lastFridayMode=isFridayMode();
   setInterval(()=>{const current=isFridayMode();if(current!==lastFridayMode){lastFridayMode=current;category="Todos";cart={};guestCart={};cartChoices={};guestCartChoices={};render();toast(current?"Modo Sexta-feira ativado! 🎉":"Modo Sexta-feira encerrado.")}},60000);
-  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=43").catch(()=>{});}
+  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=44").catch(()=>{});}
   render();
+  hydratePublicBootstrap().then(ok=>{if(ok&&!state.session.mode)render()});
 })();

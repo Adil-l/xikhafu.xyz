@@ -24,6 +24,6 @@ Depois abra [http://127.0.0.1:8080](http://127.0.0.1:8080).
 
 ## Armazenamento
 
-O Supabase centraliza o estado dos PINs e os dados agregados do Hall da Fome. Um PIN solicitado no primeiro dispositivo fica pendente até aprovação do administrador e, depois disso, funciona nos restantes dispositivos sem poder ser redefinido pelo utilizador.
+O Supabase centraliza os PINs, saldos, dívidas, pedidos, recargas, contribuições, históricos e os dados agregados do Hall da Fome. Um PIN solicitado no primeiro dispositivo fica pendente até aprovação do administrador e, depois disso, funciona nos restantes dispositivos sem poder ser redefinido pelo utilizador.
 
-O ranking é partilhado entre aparelhos. Os restantes dados operacionais continuam com uma cópia local no navegador, com sincronização entre abas do mesmo dispositivo.
+O navegador mantém uma cópia rápida dos dados para a interface, mas o Supabase é a fonte partilhada entre aparelhos. Alterações administrativas e novos pedidos são enviados ao servidor e as sessões abertas atualizam-se automaticamente.
