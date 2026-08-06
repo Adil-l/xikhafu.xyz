@@ -24,4 +24,6 @@ Depois abra [http://127.0.0.1:8080](http://127.0.0.1:8080).
 
 ## Armazenamento
 
-Esta versão guarda os dados no navegador do dispositivo. Para utilização em vários dispositivos, será necessário ligar a aplicação a um servidor ou base de dados partilhada.
+Esta versão guarda os dados no navegador do dispositivo e sincroniza as alterações entre abas abertas no mesmo navegador. Cada aba mantém a sua própria sessão, permitindo testar utilizadores diferentes em paralelo.
+
+Para partilhar pedidos e o Hall da Fome entre telemóveis ou computadores diferentes, ainda será necessário ligar a aplicação a um servidor ou base de dados partilhada.

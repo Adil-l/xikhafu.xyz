@@ -1,6 +1,7 @@
 
 (() => {
   const KEY = "paoCadaDiaUnifiedV3";
+  const SESSION_KEY = `${KEY}:session`;
   const DONATION_NUMBER = "876760317";
   const RECHARGE_NUMBER = "876760317";
   const REMOVED_PRODUCT_IDS = new Set([7,8]);
@@ -72,6 +73,7 @@
   };
 
   let state = load();
+  state.session = loadSession(state.session);
   save();
   let page = "home";
   let cart = {};
@@ -140,8 +142,13 @@
     return data;
   }
   function load(){try{return cleanRemovedProducts(JSON.parse(localStorage.getItem(KEY))||structuredClone(seed))}catch{return cleanRemovedProducts(structuredClone(seed))}}
-  function save(){localStorage.setItem(KEY,JSON.stringify(state))}
-  function reset(){localStorage.removeItem(KEY);state=cleanRemovedProducts(structuredClone(seed));page="home";adminSection="dashboard";cart={};guestCart={};cartChoices={};guestCartChoices={};customRequest="";guestCustomRequest="";save();render()}
+  function loadSession(fallback={mode:null,userId:null}){try{return JSON.parse(sessionStorage.getItem(SESSION_KEY))||fallback||{mode:null,userId:null}}catch{return fallback||{mode:null,userId:null}}}
+  function save(){
+    const sharedState={...state,session:{mode:null,userId:null}};
+    localStorage.setItem(KEY,JSON.stringify(sharedState));
+    sessionStorage.setItem(SESSION_KEY,JSON.stringify(state.session||{mode:null,userId:null}));
+  }
+  function reset(){localStorage.removeItem(KEY);sessionStorage.removeItem(SESSION_KEY);state=cleanRemovedProducts(structuredClone(seed));page="home";adminSection="dashboard";cart={};guestCart={};cartChoices={};guestCartChoices={};customRequest="";guestCustomRequest="";save();render()}
   function toast(text){const e=$("#toast");e.textContent="";requestAnimationFrame(()=>{e.textContent=text;e.classList.add("show")});clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),3600)}
   function openModal(html,onClose=null){const modal=$("#modal"),sheet=$(".sheet"),wasOpen=modal.classList.contains("open");if(!wasOpen)modalOpener=document.activeElement;modalCloseAction=onClose;$("#modalContent").innerHTML=`<div class="modal-brand"><span aria-hidden="true">🍞</span><strong>O Pão de Cada Dia</strong><button class="modal-close" data-close aria-label="Fechar janela"><span aria-hidden="true">×</span></button></div><div class="modal-body">${html}</div>`;const heading=$("#modalContent h3");if(heading){heading.id="modalTitle";heading.tabIndex=-1;sheet.setAttribute("aria-labelledby","modalTitle");sheet.removeAttribute("aria-label")}else{sheet.removeAttribute("aria-labelledby");sheet.setAttribute("aria-label","Janela de diálogo")}modal.classList.add("open");modal.setAttribute("aria-hidden","false");app.inert=true;document.body.classList.add("modal-open");requestAnimationFrame(()=>{(heading||sheet)?.focus()})}
   function closeModal(){const modal=$("#modal");if(!modal.classList.contains("open"))return;const fallback=modalCloseAction;modalCloseAction=null;modal.classList.remove("open");modal.setAttribute("aria-hidden","true");app.inert=false;document.body.classList.remove("modal-open");const restore=modalOpener;modalOpener=null;if(fallback){requestAnimationFrame(fallback);return}if(restore?.isConnected)requestAnimationFrame(()=>restore.focus())}
@@ -310,7 +317,16 @@
   function cartTotal(c,mode){return Object.entries(c).reduce((s,[id,q])=>{const p=product(id);return s+(canOrderProduct(p)?selectedUnitPrice(p,mode):0)*q},0)}
   function cartNeedsContact(c,mode){return Object.entries(c).some(([id,q])=>q>0&&canOrderProduct(product(id))&&(Number(product(id)?.price||0)===0||product(id)?.contactForFlavor))||Boolean((mode==="guest"?guestCustomRequest:customRequest).trim())}
   function orderHasContent(c,mode){return cartQty(c)>0||Boolean((mode==="guest"?guestCustomRequest:customRequest).trim())}
-  function refreshCheckout(mode){const c=mode==="guest"?guestCart:cart,total=cartTotal(c,mode),count=cartContentCount(c,mode),itemLabel=`${count} ${count===1?"item":"itens"}`,needsContact=cartNeedsContact(c,mode),footer=$(mode==="guest"?".guest-checkout":".checkout:not(.guest-checkout)"),button=$(mode==="guest"?"#reviewGuestOrder":"#reviewUserOrder");if(footer){const value=$(".checkout-top strong",footer),summary=$(".checkout-top span",footer);if(value)value.textContent=needsContact?(total>0?`${fmt(total)} MT + confirmar`:"A confirmar"):`${fmt(total)} MT`;if(summary)summary.textContent=mode==="guest"?`${itemLabel} • A mola combina-se`:`${itemLabel} • Mola: ${fmt(userAvailable(activeUser().id))} MT`}if(button)button.disabled=!orderHasContent(c,mode)}
+  function checkoutMarkup(mode){
+    const c=mode==="guest"?guestCart:cart,total=cartTotal(c,mode),count=cartContentCount(c,mode),hasContent=orderHasContent(c,mode),needsContact=cartNeedsContact(c,mode),isGuest=mode==="guest";
+    const itemText=count?`${count} ${count===1?"item escolhido":"itens escolhidos"}`:"Nenhum item escolhido";
+    const context=isGuest?(needsContact?"Preço final será confirmado":"Preço do pedido"):`Saldo disponível: ${fmt(userAvailable(activeUser().id))} MT`;
+    const totalLabel=needsContact?"Total estimado":"Total do pedido";
+    const amount=needsContact?(total>0?`${fmt(total)} MT + confirmar`:"A confirmar"):`${fmt(total)} MT`;
+    const buttonText=hasContent?(isGuest?"REVER PEDIDO, BOSS":"REVER PEDIDO 😋"):"ESCOLHE O FOOD PRIMEIRO";
+    return `<div class="checkout-space" aria-hidden="true"></div><div class="checkout ${isGuest?"guest-checkout ":""}${hasContent?"":"is-empty"}" data-checkout-mode="${mode}"><div class="checkout-summary"><div class="checkout-order"><span class="checkout-kicker">O TEU PEDIDO</span><strong data-checkout-count>${itemText}</strong><small data-checkout-context>${context}</small></div><div class="checkout-total"><span data-checkout-total-label>${totalLabel}</span><strong data-checkout-value aria-live="polite">${amount}</strong></div></div><button class="primary" id="${isGuest?"reviewGuestOrder":"reviewUserOrder"}" ${hasContent?"":"disabled"}>${buttonText}</button></div>`;
+  }
+  function refreshCheckout(mode){const c=mode==="guest"?guestCart:cart,total=cartTotal(c,mode),count=cartContentCount(c,mode),hasContent=orderHasContent(c,mode),needsContact=cartNeedsContact(c,mode),isGuest=mode==="guest",footer=$(`[data-checkout-mode="${mode}"]`),button=$(isGuest?"#reviewGuestOrder":"#reviewUserOrder");if(footer){$("[data-checkout-count]",footer).textContent=count?`${count} ${count===1?"item escolhido":"itens escolhidos"}`:"Nenhum item escolhido";$("[data-checkout-context]",footer).textContent=isGuest?(needsContact?"Preço final será confirmado":"Preço do pedido"):`Saldo disponível: ${fmt(userAvailable(activeUser().id))} MT`;$("[data-checkout-total-label]",footer).textContent=needsContact?"Total estimado":"Total do pedido";$("[data-checkout-value]",footer).textContent=needsContact?(total>0?`${fmt(total)} MT + confirmar`:"A confirmar"):`${fmt(total)} MT`;footer.classList.toggle("is-empty",!hasContent)}if(button){button.disabled=!hasContent;button.textContent=hasContent?(isGuest?"REVER PEDIDO, BOSS":"REVER PEDIDO 😋"):"ESCOLHE O FOOD PRIMEIRO"}}
   function optionsMarkup(p,mode){const selected=selectedChoices(p,mode);return (p.options||[]).map(group=>`<label><span>${group.label}</span><select data-product-option="${p.id}" data-option-key="${group.key}" data-cart-mode="${mode}">${group.choices.map(choice=>`<option value="${esc(choice.label)}" ${selected[group.key]===choice.label?"selected":""}>${choice.label}</option>`).join("")}</select></label>`).join("")}
   function productPicker(currentCart,mode){
     const orderable=state.products.filter(canOrderProduct).sort(byName);
@@ -332,7 +348,7 @@
       ${available<=150?`<div class="balance-alert ${available<=0?"negative":""}"><span>${available<=0?"🚨":"👛"}</span><div><strong>${available<0?"Território das dívidas":available===0?"Saldo esgotado":"Saldo a ficar baixo"}</strong><small>${balanceMessage(available)}</small></div></div>`:""}
       ${productPicker(cart,"user")}
       ${customRequestCard("user")}
-      <div class="checkout-space" aria-hidden="true"></div><div class="checkout"><div class="checkout-top"><span>${cartContentCount(cart,"user")} ${cartContentCount(cart,"user")===1?"item":"itens"} • Mola: ${fmt(userAvailable(u.id))} MT</span><strong aria-live="polite">${needsContact?(total>0?`${fmt(total)} MT + confirmar`:"A confirmar"):`${fmt(total)} MT`}</strong></div><button class="primary" id="reviewUserOrder" ${!orderHasContent(cart,"user")?"disabled":""}>REVER PEDIDO 😋</button></div>`;
+      ${checkoutMarkup("user")}`;
   }
   function userOrderRow(o){return `<div class="order"><div class="face">🧾</div><div><strong>Pedido #${o.id}</strong><small>${itemSummary(o)}</small></div><div class="side"><b>${orderTotalLabel(o)}</b><span class="status ${o.status}">${statusText(o.status)}</span></div></div>`}
   function userOrders(u){
@@ -369,7 +385,7 @@
       ${productPicker(guestCart,"guest")}
       ${customRequestCard("guest")}
       ${guestDailyDonationCard()}
-      <div class="checkout-space" aria-hidden="true"></div><div class="checkout guest-checkout"><div class="checkout-top"><span>${cartContentCount(guestCart,"guest")} ${cartContentCount(guestCart,"guest")===1?"item":"itens"} • A mola combina-se</span><strong aria-live="polite">${needsContact?(total>0?`${fmt(total)} MT + confirmar`:"A confirmar"):`${fmt(total)} MT`}</strong></div><button class="primary" id="reviewGuestOrder" ${!orderHasContent(guestCart,"guest")?"disabled":""}>REVER PEDIDO, BOSS</button></div>`;
+      ${checkoutMarkup("guest")}`;
     return shell("Pedido sem stress","Convidado",`<button class="icon-btn" data-logout title="Sair" aria-label="Voltar ao início">↩️</button>`,content,"");
   }
 
@@ -711,8 +727,15 @@
   });
   $("#modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
   window.addEventListener("keydown",e=>{const modal=$("#modal");if(!modal.classList.contains("open"))return;if(e.key==="Escape"){e.preventDefault();closeModal();return}if(e.key==="Tab"){const focusable=$$('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[href],[tabindex]:not([tabindex="-1"])',modal).filter(el=>el.offsetParent!==null);if(!focusable.length)return;const first=focusable[0],last=focusable[focusable.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}});
+  window.addEventListener("storage",e=>{
+    if(e.key!==KEY||!e.newValue)return;
+    const currentSession=state.session;
+    state=load();
+    state.session=currentSession;
+    if($(".ranking-modal"))rankingModal();else render();
+  });
   let lastFridayMode=isFridayMode();
   setInterval(()=>{const current=isFridayMode();if(current!==lastFridayMode){lastFridayMode=current;category="Todos";cart={};guestCart={};cartChoices={};guestCartChoices={};render();toast(current?"Modo Sexta-feira ativado! 🎉":"Modo Sexta-feira encerrado.")}},60000);
-  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=38").catch(()=>{});}
+  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=41").catch(()=>{});}
   render();
 })();
