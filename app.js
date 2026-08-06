@@ -4,18 +4,21 @@
   const DONATION_NUMBER = "876760317";
   const REMOVED_PRODUCT_IDS = new Set([7,8]);
   const USER_ROSTER = [
-    {id:1,name:"Adilson",avatar:"👨🏽‍💻",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
-    {id:2,name:"Kelton",avatar:"🦁",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
-    {id:3,name:"Gizela",avatar:"🐼",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
-    {id:6,name:"Alanice",avatar:"🌸",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
-    {id:7,name:"Elias",avatar:"🦅",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
-    {id:8,name:"Daniel",avatar:"🐯",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
-    {id:9,name:"Edson",avatar:"😎",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
-    {id:10,name:"Nehemias",avatar:"🐺",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
-    {id:11,name:"Deolinda",avatar:"🌻",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
-    {id:12,name:"Jorge",avatar:"🐻",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
-    {id:13,name:"Luisa",avatar:"🦋",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
-    {id:14,name:"Wesley",avatar:"⚡",pin:"",pinConfigured:false,monthlyBalance:0,active:true}
+    {id:1,name:"Adilson Gavumende",avatar:"👨🏽‍💻",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:8,name:"Daniel Jacinto",avatar:"🐯",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:11,name:"Deolinda Nguenha",avatar:"🌻",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:15,name:"Dilma Lineco",avatar:"🌺",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:9,name:"Edson Mangaho",avatar:"😎",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:16,name:"Edson Vasconcelos",avatar:"🧑🏽‍💼",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:7,name:"Elias Bernado",avatar:"🦅",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:3,name:"Gisela Capitine",avatar:"🐼",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:17,name:"Isabel Pedro",avatar:"💐",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:12,name:"Jorge Pacule",avatar:"🐻",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:2,name:"Kelton Tesoura",avatar:"🦁",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:13,name:"Luisa Matola",avatar:"🦋",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:18,name:"Mr Guze",avatar:"👑",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:10,name:"Nehemias Tovela",avatar:"🐺",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:14,name:"Wesley Ussene",avatar:"⚡",pin:"",pinConfigured:false,monthlyBalance:0,active:true}
   ];
   const MENU_PRODUCTS = [
     {id:1,name:"Bread",icon:"🥖",price:12,category:"Breads",active:true,fridayOnly:false,options:[{key:"preco",label:"Escolhe o preço",choices:[{label:"12 MT",price:12},{label:"14 MT",price:14}]}]},
@@ -96,18 +99,17 @@
   const activeUser = () => user(state.session.userId);
 
   function cleanRemovedProducts(data){
-    const rosterUpdated=Number(data.settings?.userRosterVersion||0)>=1;
+    const rosterUpdated=Number(data.settings?.userRosterVersion||0)>=2;
     const pinSetupUpdated=Number(data.settings?.pinSetupVersion||0)>=1;
     const menuUpdated=Number(data.settings?.menuVersion||0)>=1;
     const accountsReset=Number(data.settings?.accountsResetVersion||0)>=1;
     const cleanSlateUpdated=Number(data.settings?.cleanSlateVersion||0)>=1;
     data.settings={...seed.settings,...(data.settings||{})};
     if(!rosterUpdated){
-      const existing=data.users||[],normal=name=>String(name||"").trim().toLowerCase().replace("gisela","gizela");
-      const rosterNames=new Set(USER_ROSTER.map(u=>normal(u.name)));
-      const current=USER_ROSTER.map(def=>{const found=existing.find(u=>normal(u.name)===normal(def.name));return found?{...found,name:def.name,avatar:found.avatar||def.avatar,active:true}:{...def}});
-      const legacy=existing.filter(u=>!rosterNames.has(normal(u.name))).map(u=>({...u,active:false,legacyHidden:true}));
-      data.users=[...current,...legacy];data.settings.userRosterVersion=1;
+      const existing=data.users||[],rosterIds=new Set(USER_ROSTER.map(u=>Number(u.id)));
+      const current=USER_ROSTER.map(def=>{const found=existing.find(u=>Number(u.id)===Number(def.id));return found?{...found,name:def.name,avatar:def.avatar,active:true,legacyHidden:false}:{...def}});
+      const legacy=existing.filter(u=>!rosterIds.has(Number(u.id))).map(u=>({...u,active:false,legacyHidden:true}));
+      data.users=[...current,...legacy];data.settings.userRosterVersion=2;
     }
     if(!pinSetupUpdated){data.users=(data.users||[]).map(u=>u.legacyHidden?u:{...u,pin:"",pinConfigured:false});data.settings.pinSetupVersion=1}
     if(!accountsReset){const resetAt=new Date().toISOString();data.users=(data.users||[]).map(u=>u.legacyHidden?u:{...u,monthlyBalance:0,pin:"",pinConfigured:false,balanceResetAt:resetAt});data.settings.adminPin="1234";data.settings.accountsResetVersion=1;data.session={mode:null,userId:null}}
@@ -629,6 +631,6 @@
   window.addEventListener("keydown",e=>{const modal=$("#modal");if(!modal.classList.contains("open"))return;if(e.key==="Escape"){e.preventDefault();closeModal();return}if(e.key==="Tab"){const focusable=$$('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[href],[tabindex]:not([tabindex="-1"])',modal).filter(el=>el.offsetParent!==null);if(!focusable.length)return;const first=focusable[0],last=focusable[focusable.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}});
   let lastFridayMode=isFridayMode();
   setInterval(()=>{const current=isFridayMode();if(current!==lastFridayMode){lastFridayMode=current;category="Todos";cart={};guestCart={};cartChoices={};guestCartChoices={};render();toast(current?"Modo Sexta-feira ativado! 🎉":"Modo Sexta-feira encerrado.")}},60000);
-  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=35").catch(()=>{});}
+  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=36").catch(()=>{});}
   render();
 })();
