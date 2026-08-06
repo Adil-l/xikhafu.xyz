@@ -1,0 +1,22 @@
+{
+  "name": "O Pão de Cada Dia",
+  "short_name": "Pão do Dia",
+  "description": "Pedidos, saldos e gestão do lanche.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fff8ed",
+  "theme_color": "#ff7817",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
