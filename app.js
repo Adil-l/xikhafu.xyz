@@ -4,6 +4,13 @@
   const DONATION_NUMBER = "876760317";
   const RECHARGE_NUMBER = "876760317";
   const REMOVED_PRODUCT_IDS = new Set([7,8]);
+  const OPENING_PHRASES = [
+    "O estômago já enviou três notificações.",
+    "O padeiro está a observar...",
+    "Hoje promete muita badjia.",
+    "A dieta começa segunda."
+  ];
+  const openingPhrase = OPENING_PHRASES[Math.floor(Math.random()*OPENING_PHRASES.length)];
   const USER_ROSTER = [
     {id:1,name:"Adilson Gavumende",avatar:"👨🏽‍💻",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
     {id:8,name:"Daniel Jacinto",avatar:"🐯",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
@@ -55,7 +62,7 @@
   ];
   const monthName = new Intl.DateTimeFormat("pt-PT",{month:"long",year:"numeric"}).format(new Date());
   const seed = {
-    settings:{guestOrdering:true,adminPin:"1234",donationDay:5,donationGoal:"o primeiro carro do padeiro (ou pelo menos um Yango 😅)"},
+    settings:{guestOrdering:true,adminPin:"1234",balancePolicy:"allow-negative",donationDay:5,donationGoal:"o primeiro carro do padeiro (ou pelo menos um Yango 😅)"},
     users:USER_ROSTER.map(u=>({...u})),
     products:MENU_PRODUCTS.map(p=>structuredClone(p)),
     orders:[],
@@ -135,8 +142,8 @@
   function load(){try{return cleanRemovedProducts(JSON.parse(localStorage.getItem(KEY))||structuredClone(seed))}catch{return cleanRemovedProducts(structuredClone(seed))}}
   function save(){localStorage.setItem(KEY,JSON.stringify(state))}
   function reset(){localStorage.removeItem(KEY);state=cleanRemovedProducts(structuredClone(seed));page="home";adminSection="dashboard";cart={};guestCart={};cartChoices={};guestCartChoices={};customRequest="";guestCustomRequest="";save();render()}
-  function toast(text){const e=$("#toast");e.textContent="";requestAnimationFrame(()=>{e.textContent=text;e.classList.add("show")});clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),3000)}
-  function openModal(html,onClose=null){const modal=$("#modal"),sheet=$(".sheet"),wasOpen=modal.classList.contains("open");if(!wasOpen)modalOpener=document.activeElement;modalCloseAction=onClose;$("#modalContent").innerHTML=`<button class="modal-close" data-close aria-label="Fechar janela"><span aria-hidden="true">×</span></button>${html}`;const heading=$("#modalContent h3");if(heading){heading.id="modalTitle";heading.tabIndex=-1;sheet.setAttribute("aria-labelledby","modalTitle");sheet.removeAttribute("aria-label")}else{sheet.removeAttribute("aria-labelledby");sheet.setAttribute("aria-label","Janela de diálogo")}modal.classList.add("open");modal.setAttribute("aria-hidden","false");app.inert=true;document.body.classList.add("modal-open");requestAnimationFrame(()=>{(heading||sheet)?.focus()})}
+  function toast(text){const e=$("#toast");e.textContent="";requestAnimationFrame(()=>{e.textContent=text;e.classList.add("show")});clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),3600)}
+  function openModal(html,onClose=null){const modal=$("#modal"),sheet=$(".sheet"),wasOpen=modal.classList.contains("open");if(!wasOpen)modalOpener=document.activeElement;modalCloseAction=onClose;$("#modalContent").innerHTML=`<div class="modal-brand"><span aria-hidden="true">🍞</span><strong>O Pão de Cada Dia</strong><button class="modal-close" data-close aria-label="Fechar janela"><span aria-hidden="true">×</span></button></div><div class="modal-body">${html}</div>`;const heading=$("#modalContent h3");if(heading){heading.id="modalTitle";heading.tabIndex=-1;sheet.setAttribute("aria-labelledby","modalTitle");sheet.removeAttribute("aria-label")}else{sheet.removeAttribute("aria-labelledby");sheet.setAttribute("aria-label","Janela de diálogo")}modal.classList.add("open");modal.setAttribute("aria-hidden","false");app.inert=true;document.body.classList.add("modal-open");requestAnimationFrame(()=>{(heading||sheet)?.focus()})}
   function closeModal(){const modal=$("#modal");if(!modal.classList.contains("open"))return;const fallback=modalCloseAction;modalCloseAction=null;modal.classList.remove("open");modal.setAttribute("aria-hidden","true");app.inert=false;document.body.classList.remove("modal-open");const restore=modalOpener;modalOpener=null;if(fallback){requestAnimationFrame(fallback);return}if(restore?.isConnected)requestAnimationFrame(()=>restore.focus())}
   function logout(){closeModal();state.session={mode:null,userId:null};save();page="home";adminSection="dashboard";cart={};guestCart={};cartChoices={};guestCartChoices={};customRequest="";guestCustomRequest="";customOpen={user:false,guest:false};render()}
   function statusText(s){return s==="paid"?"Pago":s==="debt"?"Em dívida":s==="cancelled"?"Cancelado":"Pendente"}
@@ -150,12 +157,32 @@
   function userItemQty(id,test){return userOrdersAll(id).reduce((sum,o)=>sum+o.items.reduce((total,item)=>{const p=product(item.productId);return total+(p&&test(p)?Number(item.qty):0)},0),0)}
   function userAllSpent(id){return userOrdersAll(id).reduce((sum,o)=>sum+orderTotal(o),0)}
   function balanceMessage(amount){
-    if(amount<0)return `Eish, boss! Entraste nas dívidas: ${fmt(amount)} MT. 😅`;
-    if(amount===0)return "A mola acabou, meu people. O bread fica para a próxima.";
-    if(amount<=50)return `Só restam ${fmt(amount)} MT. Escolhe essa badjia com cabeça, boss.`;
-    if(amount<=100)return "A carteira está maningue magra.";
-    if(amount<=150)return "Calma, boss. O saldo já está a pedir água.";
+    if(amount<0)return `Calma campeão... ainda tens ${fmt(Math.abs(amount))} MT por acertar.`;
+    if(amount===0)return state.settings.balancePolicy==="block"?"Saldo esgotado. O bread fica para o próximo mês.":"Saldo em 0 MT. Ainda podes entrar nas dívidas — vai com calma, campeão.";
+    if(amount<=50)return `Restam apenas ${fmt(amount)} MT. Escolhe a badjia com sabedoria.`;
+    if(amount<=100)return "A carteira está de dieta.";
+    if(amount<=150)return "Calma, campeão. O teu saldo já está a pedir água.";
     return `Ainda tens ${fmt(amount)} MT. Está nice!`;
+  }
+  function showConfetti(){
+    if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+    const layer=document.createElement("div");layer.className="celebration-layer";layer.setAttribute("aria-hidden","true");layer.innerHTML=Array.from({length:14},(_,i)=>`<i style="--i:${i};--x:${(i*37)%100}%;--delay:${(i%5)*35}ms"></i>`).join("");document.body.appendChild(layer);setTimeout(()=>layer.remove(),1500);
+  }
+  function celebrateOrder(){showConfetti();toast("Excelente escolha. O padeiro agradece. 🎉")}
+  function balanceRuleModal(total,available){
+    const blocked=state.settings.balancePolicy==="block";
+    openModal(`<div class="balance-decision ${blocked?"blocked":"debt-ok"}"><div class="feedback-emoji">${blocked?"🛑":"😅"}</div><div class="eyebrow">${blocked?"MOLA ESGOTADA":"TERRITÓRIO DAS DÍVIDAS"}</div><h3>${blocked?"Hoje o bread fica a descansar":"Ainda queres mandar vir?"}</h3><p>${blocked?`O food custa <strong>${fmt(total)} MT</strong> e tens <strong>${fmt(available)} MT</strong>. Saldo esgotado. O bread fica para o próximo mês.`:`Eish, a mola está curta: o food custa ${fmt(total)} MT e tens ${fmt(available)} MT. Queres entrar nas dívidas e mandar vir mesmo assim?`}</p><div class="sheet-actions">${blocked?`<button class="primary orange" data-close>ENTENDI, BOSS</button>`:`<button class="secondary" data-close>VOLTAR</button><button class="primary orange" id="confirmDebtOrder">MANDAR MESMO ASSIM</button>`}</div></div>`);
+  }
+  function orderStatusFeedback(type,order){
+    const paid=type==="paid",amount=orderTotal(order);
+    if(paid)showConfetti();
+    openModal(`<div class="status-feedback ${type}"><div class="status-animation" aria-hidden="true">${paid?`<span>💰</span><b>➜</b><span>🥖</span>`:`<span>😂</span>`}</div><div class="eyebrow">${paid?"MAMBO FECHADO":"FICOU NA CONTA"}</div><h3>${paid?"Pagamento confirmado!":"Entrou nas dívidas"}</h3><p>${paid?"Missão cumprida. A tua consciência está leve.":`Calma campeão... ainda tens ${fmt(amount)} MT por acertar.`}</p><button class="primary ${paid?"":"orange"}" data-close>${paid?"ESTÁ NICE ✅":"VAMOS ACERTAR 😅"}</button></div>`);
+  }
+  function resetPinConfirmModal(u){
+    openModal(`<div class="confirm-card"><div class="feedback-emoji">🔐</div><div class="eyebrow">REINICIAR PIN</div><h3>Dar um novo começo a ${esc(u.name)}?</h3><p>No próximo acesso, esta pessoa terá de criar um PIN novo de 4 números.</p><div class="sheet-actions"><button class="secondary" data-close>DEIXAR COMO ESTÁ</button><button class="primary orange" id="confirmResetUserPin" data-id="${u.id}">REINICIAR PIN</button></div></div>`);
+  }
+  function resetSystemConfirmModal(){
+    openModal(`<div class="confirm-card danger"><div class="feedback-emoji">♻️</div><div class="eyebrow">ZERAR O SISTEMA</div><h3>Apagar todo o mambo?</h3><p>Pedidos, movimentos, contribuições, saldos e PINs serão apagados. Esta ação não dá para desfazer.</p><div class="sheet-actions"><button class="secondary" data-close>CANCELAR</button><button class="primary orange" id="confirmSystemReset">SIM, ZERAR TUDO</button></div></div>`);
   }
   function orderOwner(o){return o.type==="guest" ? {name:o.guestName||"Convidado",avatar:"👤"} : user(o.userId)||{name:"Utilizador removido",avatar:"❔"}}
   function itemSummary(o){const items=(o.items||[]).map(i=>{const choices=Object.values(i.choices||{}).join(", ");return `${product(i.productId)?.icon||"❔"} ×${i.qty}${choices?` (${esc(choices)})`:""}`}).join("  ");const special=o.customRequest?`${items?"  • ":""}📝 ${esc(o.customRequest)}`:"";return `${items}${special}${o.guestDonation?`  • 🚗 ${fmt(o.guestDonation)} MT`:""}`}
@@ -222,6 +249,7 @@
         <div class="mascot">🍞</div>
         <h1>O Pão de Cada Dia</h1>
         <p>Pedidos, mola mensal e fome maningue séria.</p>
+        <div class="opening-phrase"><span>💬</span>${esc(openingPhrase)}</div>
       </div>
       <div class="access-grid">
         <button class="access-card" data-entry="user">
@@ -261,7 +289,7 @@
     const orders=state.orders.filter(o=>o.type==="user"&&o.userId===u.id&&isThisMonth(o.date));
     const qty=id=>orders.reduce((s,o)=>s+o.items.filter(i=>i.productId===id).reduce((a,i)=>a+i.qty,0),0);
     const spent=userSpent(u.id),recharged=userRecharge(u.id),donated=userDonation(u.id),available=userAvailable(u.id),funds=u.monthlyBalance+recharged;
-    return `<div class="hero"><div class="eyebrow">Então, ${u.name}, está nice?</div><h2>Vamos txovar essa fome? 😋</h2><p>Escolhe o food, controla a mola e acompanha os teus pedidos.</p><div class="hero-chip">A fome não brinca, boss.</div></div>
+    return `<div class="hero"><div class="eyebrow">Então, ${u.name}, está nice?</div><h2>Vamos txovar essa fome? 😋</h2><p>Escolhe o food, controla a mola e acompanha os teus pedidos.</p><div class="hero-chip">💬 ${esc(openingPhrase)}</div></div>
       ${fridayNotice()}
       <div class="stats"><div class="stat"><span class="emoji">🥖</span><strong>${qty(1)}</strong><span>Meus breads</span></div><div class="stat"><span class="emoji">🥟</span><strong>${qty(2)}</strong><span>Badjias</span></div><div class="stat"><span class="emoji">🧾</span><strong>${orders.length}</strong><span>Pedidos</span></div></div>
       <div class="head"><div><h3>Meu saldo</h3><p>${monthName}</p></div><button class="link" data-user-page="balance">Ver detalhes →</button></div>
@@ -333,7 +361,7 @@
 
   function guestView(){
     const total=cartTotal(guestCart,"guest"),needsContact=cartNeedsContact(guestCart,"guest");
-    const content=`<div class="hero guest"><div class="eyebrow">Pedido rápido</div><h2>Sem cadastro, sem stress. 🛒</h2><p>Diz o teu nome, escolhe o food e manda o pedido.</p><div class="hero-chip">A mola combina-se depois.</div></div>
+    const content=`<div class="hero guest"><div class="eyebrow">Pedido rápido</div><h2>Sem cadastro, sem stress. 🛒</h2><p>Diz o teu nome, escolhe o food e manda o pedido.</p><div class="hero-chip">💬 ${esc(openingPhrase)}</div></div>
       ${fridayNotice()}
       <div class="head"><div><h3>Quem és, boss?</h3><p>Só o básico, sem interrogatório.</p></div></div>
       <div class="card" style="padding:15px"><div class="form-row" style="margin-top:0"><label for="guestName">TEU NOME *</label><input id="guestName" maxlength="30" required aria-required="true" placeholder="Ex.: Mokizzow" value="${state.session.guestName||""}"></div><div class="form-row"><label for="guestPhone">CONTACTO ${needsContact?"OBRIGATÓRIO PARA CONFIRMAR":"OPCIONAL"}</label><input id="guestPhone" maxlength="20" ${needsContact?'required aria-required="true"':""} aria-describedby="guestPhoneHint" placeholder="Ex.: 84 000 0000" value="${state.session.guestPhone||""}"><small class="field-hint" id="guestPhoneHint">${needsContact?"Precisamos do contacto para confirmar preço, sabor ou disponibilidade.":"Podes deixar um número para facilitar a entrega."}</small></div></div>
@@ -384,15 +412,38 @@
     receiptOrders(dateKey).forEach(o=>{const owner=orderOwner(o),key=o.type==="user"?`user-${o.userId}`:`guest-${owner.name.toLocaleLowerCase("pt")}-${o.guestPhone||""}`;if(!groups.has(key))groups.set(key,{owner,orders:[]});groups.get(key).orders.push(o)});
     return [...groups.values()].sort((a,b)=>a.owner.name.localeCompare(b.owner.name,"pt",{sensitivity:"base"}));
   }
+  function receiptMissingPrices(dateKey){
+    const missing=[];
+    receiptOrders(dateKey).forEach(order=>{
+      const owner=orderOwner(order);
+      (order.items||[]).forEach((item,index)=>{if(itemPrice(item)<=0){const p=product(item.productId);missing.push({order,owner,item,index,name:p?.name||"Produto",icon:p?.icon||"❔",qty:Number(item.qty||1),custom:false})}});
+      if(order.customRequest&&Number(order.customPrice||0)<=0)missing.push({order,owner,name:order.customRequest,icon:"📝",qty:1,custom:true});
+    });
+    return missing;
+  }
+  function receiptPricingEditor(dateKey){
+    const missing=receiptMissingPrices(dateKey);if(!missing.length)return "";
+    const rows=missing.map(entry=>`<div class="receipt-price-row"><div><span>${entry.icon}</span><div><strong>${esc(entry.name)}${entry.custom?"":` × ${entry.qty}`}</strong><small>${esc(entry.owner.name)} • Pedido #${entry.order.id}</small></div></div><label><span>${entry.custom?"Valor cobrado":"Preço unitário"}</span><span class="receipt-price-input"><input data-receipt-price data-order-id="${entry.order.id}" ${entry.custom?'data-custom-price="true"':`data-item-index="${entry.index}"`} type="number" min="1" step="1" inputmode="numeric" placeholder="0" aria-label="${entry.custom?"Valor cobrado por":`Preço unitário de`} ${esc(entry.name)} no pedido ${entry.order.id}"><b>MT</b></span></label></div>`).join("");
+    return `<section class="receipt-pricing"><div class="receipt-pricing-head"><span>✍🏽</span><div><strong>Completa os valores antes de imprimir</strong><small>${missing.length} ${missing.length===1?"valor está":"valores estão"} por confirmar. Preenche quanto foi realmente cobrado.</small></div></div><div class="receipt-price-list">${rows}</div><button class="primary orange" id="saveReceiptPrices" data-date="${dateKey}">GUARDAR VALORES DO RECIBO</button></section>`;
+  }
+  function saveReceiptPrices(dateKey){
+    const inputs=$$("[data-receipt-price]");
+    const invalid=inputs.find(input=>(Number(input.value)||0)<=0);
+    if(invalid){invalid.setAttribute("aria-invalid","true");invalid.focus();toast("Preenche todos os valores cobrados antes de imprimir, boss.");return false}
+    inputs.forEach(input=>{const order=state.orders.find(o=>o.id===Number(input.dataset.orderId)),value=Math.max(0,Number(input.value)||0);if(!order)return;if(input.dataset.customPrice)order.customPrice=value;else if(order.items[Number(input.dataset.itemIndex)])order.items[Number(input.dataset.itemIndex)].unitPrice=value});
+    receiptOrders(dateKey).forEach(order=>{order.needsContact=(order.items||[]).some(item=>itemPrice(item)<=0)||Boolean(order.customRequest&&Number(order.customPrice||0)<=0);order.priceAdjustedAt=new Date().toISOString()});
+    save();return true;
+  }
   function receiptAmount(total,uncertain){return uncertain?(total>0?`${fmt(total)} MT + confirmar`:"A confirmar"):`${fmt(total)} MT`}
   function dailyReceiptBody(dateKey){
     const orders=receiptOrders(dateKey),groups=receiptGroups(dateKey),grandTotal=orders.reduce((sum,o)=>sum+orderTotal(o),0),uncertain=orders.some(o=>o.needsContact),dateLabel=new Intl.DateTimeFormat("pt-PT",{weekday:"long",day:"2-digit",month:"long",year:"numeric"}).format(new Date(`${dateKey}T12:00:00`));
     if(!orders.length)return `<div class="receipt-empty"><span>🧾</span><strong>Sem pedidos neste dia</strong><small>Escolhe outra data para extrair o recibo.</small></div>`;
     const groupHtml=groups.map(group=>{const personTotal=group.orders.reduce((sum,o)=>sum+orderTotal(o),0),personUncertain=group.orders.some(o=>o.needsContact);return `<section class="receipt-person"><div class="receipt-person-head"><div><span>${group.owner.avatar}</span><strong>${esc(group.owner.name)}</strong></div><b>${receiptAmount(personTotal,personUncertain)}</b></div>${group.orders.map(o=>`<div class="receipt-order"><div class="receipt-order-head"><span>Pedido #${o.id} • ${new Intl.DateTimeFormat("pt-PT",{hour:"2-digit",minute:"2-digit"}).format(new Date(o.date))}</span><b>${orderTotalLabel(o)}</b></div><div class="receipt-lines">${(o.items||[]).map(i=>{const p=product(i.productId),choices=Object.values(i.choices||{}).join(", "),price=itemPrice(i);return `<div><span>${p?.icon||"❔"} ${esc(p?.name||"Produto")}${choices?` <small>(${esc(choices)})</small>`:""} × ${i.qty}</span><b>${price>0?`${fmt(price*i.qty)} MT`:"A confirmar"}</b></div>`}).join("")}${o.customRequest?`<div><span>📝 ${esc(o.customRequest)}</span><b>${Number(o.customPrice||0)>0?`${fmt(o.customPrice)} MT`:"A confirmar"}</b></div>`:""}${o.guestDonation?`<div><span>🚗 Contribuição ao padeiro</span><b>${fmt(o.guestDonation)} MT</b></div>`:""}</div></div>`).join("")}</section>`}).join("");
-    return `<div class="receipt-paper"><div class="receipt-brand"><span>🍞</span><div><strong>O Pão de Cada Dia</strong><small>Recibo diário • ${dateLabel}</small></div></div><div class="receipt-summary"><div><span>Pessoas</span><b>${groups.length}</b></div><div><span>Pedidos</span><b>${orders.length}</b></div><div><span>Total</span><b>${receiptAmount(grandTotal,uncertain)}</b></div></div>${groupHtml}<div class="receipt-grand"><span>Total do dia</span><strong>${receiptAmount(grandTotal,uncertain)}</strong></div><small class="receipt-note">Pedidos cancelados não entram neste recibo. Valores “a confirmar” podem ser definidos ao abrir cada pedido.</small></div>`;
+    return `<div class="receipt-paper"><div class="receipt-brand"><span>🍞</span><div><strong>O Pão de Cada Dia</strong><small>Recibo diário • ${dateLabel}</small></div></div><div class="receipt-summary"><div><span>Pessoas</span><b>${groups.length}</b></div><div><span>Pedidos</span><b>${orders.length}</b></div><div><span>Total</span><b>${receiptAmount(grandTotal,uncertain)}</b></div></div>${groupHtml}<div class="receipt-grand"><span>Total do dia</span><strong>${receiptAmount(grandTotal,uncertain)}</strong></div><small class="receipt-note">Pedidos cancelados não entram neste recibo. Valores por confirmar devem ser preenchidos antes da impressão.</small></div>`;
   }
   function dailyReceiptModal(dateKey=localDateKey()){
-    openModal(`<div class="receipt-modal"><div class="head" style="margin-top:0"><div><h3>Recibo diário</h3><p>Pedidos e gastos de cada pessoa.</p></div><span style="font-size:36px">🧾</span></div><div class="form-row"><label for="dailyReceiptDate">DIA DO RECIBO</label><input id="dailyReceiptDate" type="date" value="${dateKey}"></div>${dailyReceiptBody(dateKey)}<div class="sheet-actions"><button class="secondary" data-close>Fechar</button><button class="primary orange" id="printDailyReceipt" data-date="${dateKey}">IMPRIMIR / GUARDAR PDF</button></div></div>`);
+    const missing=receiptMissingPrices(dateKey);
+    openModal(`<div class="receipt-modal"><div class="head" style="margin-top:0"><div><h3>Recibo diário</h3><p>Pedidos e gastos de cada pessoa.</p></div><span style="font-size:36px">🧾</span></div><div class="form-row"><label for="dailyReceiptDate">DIA DO RECIBO</label><input id="dailyReceiptDate" type="date" value="${dateKey}"></div>${receiptPricingEditor(dateKey)}${dailyReceiptBody(dateKey)}<div class="sheet-actions"><button class="secondary" data-close>Fechar</button><button class="primary orange" id="printDailyReceipt" data-date="${dateKey}" ${missing.length?"disabled":""}>${missing.length?"PREENCHE OS VALORES PRIMEIRO":"IMPRIMIR / GUARDAR PDF"}</button></div></div>`);
   }
   function printDailyReceipt(dateKey){
     const frame=document.createElement("iframe");frame.setAttribute("aria-hidden","true");frame.style.position="fixed";frame.style.width="0";frame.style.height="0";frame.style.border="0";document.body.appendChild(frame);const doc=frame.contentWindow.document;doc.open();doc.write(`<!doctype html><html><head><meta charset="utf-8"><title>Recibo ${dateKey}</title><style>*{box-sizing:border-box}body{margin:0;padding:28px;font-family:Arial,sans-serif;color:#38251b;background:#fff}.receipt-paper{max-width:760px;margin:auto}.receipt-brand{display:flex;align-items:center;gap:12px;padding-bottom:15px;border-bottom:2px solid #38251b}.receipt-brand>span{font-size:36px}.receipt-brand strong,.receipt-brand small{display:block}.receipt-brand strong{font-size:22px}.receipt-brand small{margin-top:4px;color:#725f53;font-size:11px}.receipt-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0}.receipt-summary div{padding:10px;border:1px solid #ddd;border-radius:8px}.receipt-summary span,.receipt-summary b{display:block}.receipt-summary span{font-size:9px;color:#777;text-transform:uppercase}.receipt-summary b{margin-top:4px;font-size:16px}.receipt-person{margin-top:16px;border:1px solid #ccc;border-radius:10px;overflow:hidden;break-inside:avoid}.receipt-person-head,.receipt-order-head,.receipt-lines>div,.receipt-grand{display:flex;align-items:center;justify-content:space-between;gap:15px}.receipt-person-head{padding:11px 12px;background:#fff4dc}.receipt-person-head div{display:flex;align-items:center;gap:7px}.receipt-order{padding:10px 12px;border-top:1px solid #ddd}.receipt-order-head{font-size:10px;font-weight:bold}.receipt-lines{margin-top:7px}.receipt-lines>div{padding:4px 0;font-size:10px}.receipt-lines small{color:#777}.receipt-grand{margin-top:17px;padding:14px;border-top:2px solid #38251b;font-size:18px}.receipt-note{display:block;margin-top:10px;color:#777;font-size:9px}.receipt-empty{padding:40px;text-align:center}.receipt-empty span,.receipt-empty strong,.receipt-empty small{display:block}.receipt-empty span{font-size:42px}.receipt-empty small{margin-top:5px;color:#777}@page{margin:14mm}</style></head><body>${dailyReceiptBody(dateKey)}</body></html>`);doc.close();setTimeout(()=>{frame.contentWindow.focus();frame.contentWindow.print();setTimeout(()=>frame.remove(),1200)},250);
@@ -411,6 +462,8 @@
     const pledgedTotal=monthPledges.reduce((sum,p)=>sum+Number(p.amount||0),0);
     return `<div class="head" style="margin-top:2px"><div><h2>Gestão</h2><p>Configurações gerais.</p></div><span style="font-size:39px">⚙️</span></div>
       <div class="toggle-row"><div><strong>Pedidos sem cadastro</strong><small>Permitir que convidados façam pedidos rápidos.</small></div><button class="switch ${state.settings.guestOrdering?"on":""}" id="toggleGuest" role="switch" aria-checked="${state.settings.guestOrdering}" aria-label="Permitir pedidos sem cadastro"></button></div>
+      <div class="head"><div><h3>Regra quando a mola acaba</h3><p>O admin decide se o pedido para ou entra nas dívidas.</p></div></div>
+      <div class="card balance-policy" role="group" aria-label="Regra para saldo insuficiente"><button class="policy-option ${state.settings.balancePolicy==="block"?"active":""}" data-balance-policy="block" aria-pressed="${state.settings.balancePolicy==="block"}"><span>🛑</span><div><strong>Bloquear pedidos</strong><small>Sem saldo, o food fica para o próximo mês.</small></div><b>${state.settings.balancePolicy==="block"?"ATIVA":""}</b></button><button class="policy-option ${state.settings.balancePolicy!=="block"?"active":""}" data-balance-policy="allow-negative" aria-pressed="${state.settings.balancePolicy!=="block"}"><span>😅</span><div><strong>Permitir saldo negativo</strong><small>O pedido entra marcado como “Em dívida”.</small></div><b>${state.settings.balancePolicy!=="block"?"ATIVA":""}</b></button></div>
       <div class="head"><div><h3>Campanha mensal do padeiro</h3><p>O aviso aparece uma vez por mês para cada pessoa.</p></div></div>
       <div class="card campaign-settings"><div class="campaign-title"><span>🚗</span><div><strong>Fundo do sonho</strong><small>A contribuição é descontada do saldo ao confirmar.</small></div></div><div class="pledge-summary"><span>Contribuições deste mês</span><strong>${fmt(pledgedTotal)} MT</strong><small>${monthPledges.length} ${monthPledges.length===1?"contribuição registada":"contribuições registadas"}</small></div>${monthPledges.length?`<div class="pledge-list">${monthPledges.slice(0,5).map(p=>`<div class="pledge-row"><div><strong>${esc(p.name||"Convidado")}</strong><small>${new Intl.DateTimeFormat("pt-PT",{day:"2-digit",month:"2-digit"}).format(new Date(p.date))}</small></div><b>${fmt(p.amount)} MT</b><button data-remove-pledge="${p.id}" aria-label="Remover contribuição de ${esc(p.name||"Convidado")}">×</button></div>`).join("")}</div>`:""}<div class="form-row"><label for="donationDay">DIA DO MÊS (1 A 28)</label><input id="donationDay" type="number" min="1" max="28" value="${Math.min(28,Math.max(1,Number(state.settings.donationDay)||5))}"></div><div class="form-row"><label for="donationGoal">OBJETIVO DA CAMPANHA</label><input id="donationGoal" maxlength="100" value="${esc(state.settings.donationGoal)}"></div><button class="primary orange" id="saveDonationSettings" style="margin-top:13px">GUARDAR CAMPANHA</button></div>
       <div class="head"><div><h3>Ações administrativas</h3><p>Ferramentas da demonstração.</p></div></div>
@@ -489,6 +542,15 @@
   function userRechargePaymentModal(amount){
     openModal(`<div class="donation-pop"><div class="donation-emoji">📲</div><div class="eyebrow">RECARGA DE SALDO</div><h3>Faz a transferência, boss</h3><p>Transfere <strong>${fmt(amount)} MT</strong> para o número abaixo e envia o comprovativo ao administrador.</p><div class="payment-number"><span>Número para transferência</span><strong>876 760 317</strong><button id="copyRechargeNumber" data-number="${RECHARGE_NUMBER}" data-amount="${amount}">📋 COPIAR NÚMERO</button></div><div class="recharge-pending-note"><span>⏳</span><div><strong>A recarga fica pendente</strong><small>O valor só aparece no saldo depois da confirmação do administrador.</small></div></div><div class="sheet-actions"><button class="secondary" id="editUserRecharge" data-amount="${amount}">ALTERAR VALOR</button><button class="primary" data-close>CONCLUIR</button></div></div>`);
   }
+  function placeUserOrder(forceDebt=false){
+    const items=Object.entries(cart).filter(([id,q])=>q>0&&canOrderProduct(product(id))).map(([id,qty])=>{const p=product(id);return {productId:Number(id),qty,choices:{...selectedChoices(p,"user")},unitPrice:selectedUnitPrice(p,"user")}});
+    const special=customRequest.trim();if(!items.length&&!special){cart={};render();toast("Esse food hoje bazou, boss. Escolhe outro.");return}
+    const total=items.reduce((s,i)=>s+itemPrice(i)*i.qty,0),u=activeUser(),available=userAvailable(u.id),insufficient=total>available;
+    if(insufficient&&!forceDebt){balanceRuleModal(total,available);return}
+    if(insufficient&&state.settings.balancePolicy==="block"){balanceRuleModal(total,available);return}
+    const order={id:Math.max(0,...state.orders.map(o=>o.id))+1,type:"user",userId:u.id,date:new Date().toISOString(),status:insufficient?"debt":"pending",items,customRequest:special,needsContact:items.some(i=>product(i.productId)?.contactForFlavor||i.unitPrice===0)||Boolean(special)};
+    state.orders.unshift(order);cart={};cartChoices={};customRequest="";customOpen.user=false;save();closeModal();page="home";render();celebrateOrder();if(insufficient)orderStatusFeedback("debt",order);
+  }
 
   document.addEventListener("click",e=>{
     const entry=e.target.closest("[data-entry]");
@@ -508,6 +570,7 @@
     const of=e.target.closest("[data-order-filter]");if(of){orderFilter=of.dataset.orderFilter;renderWithFocus(`[data-order-filter="${orderFilter}"]`);return}
     const customToggle=e.target.closest("[data-toggle-custom]");if(customToggle){const mode=customToggle.dataset.toggleCustom;customOpen[mode]=!customOpen[mode];renderWithFocus(`[data-toggle-custom="${mode}"]`);return}
     if(e.target.closest("#openDailyReceipt")){dailyReceiptModal();return}
+    if(e.target.id==="saveReceiptPrices"){const dateKey=e.target.dataset.date;if(saveReceiptPrices(dateKey)){dailyReceiptModal(dateKey);toast("Valores guardados. O recibo já está pronto para imprimir. 🧾")}return}
     if(e.target.id==="printDailyReceipt"){printDailyReceipt(e.target.dataset.date);return}
     if(e.target.id==="reviewUserOrder"){reviewOrderModal("user");return}
     if(e.target.id==="openUserRecharge"){userRechargeModal();return}
@@ -542,29 +605,23 @@
       if($("#adminPin").value!==state.settings.adminPin){toast("Esse PIN não abre o mambo, boss.");return}
       state.session={mode:"admin",userId:null};save();closeModal();adminSection="dashboard";render();return;
     }
-    if(e.target.id==="submitUserOrder"){
-      const items=Object.entries(cart).filter(([id,q])=>q>0&&canOrderProduct(product(id))).map(([id,qty])=>{const p=product(id);return {productId:Number(id),qty,choices:{...selectedChoices(p,"user")},unitPrice:selectedUnitPrice(p,"user")}});
-      const special=customRequest.trim();if(!items.length&&!special){cart={};render();toast("Esse food hoje bazou, boss. Escolhe outro.");return}
-      const total=items.reduce((s,i)=>s+itemPrice(i)*i.qty,0),u=activeUser(),available=userAvailable(u.id);
-      if(total>available&&!confirm(`Eish, a mola está curta: o food custa ${fmt(total)} MT e tens ${fmt(available)} MT. Queres entrar nas dívidas e mandar vir mesmo assim?`))return;
-      state.orders.unshift({id:Math.max(0,...state.orders.map(o=>o.id))+1,type:"user",userId:u.id,date:new Date().toISOString(),status:total>available?"debt":"pending",items,customRequest:special,needsContact:items.some(i=>product(i.productId)?.contactForFlavor||i.unitPrice===0)||Boolean(special)});
-      cart={};cartChoices={};customRequest="";customOpen.user=false;save();closeModal();page="home";render();toast("Pedido entrou! Agora é só txilar, boss. 🎉");return;
-    }
+    if(e.target.id==="submitUserOrder"){placeUserOrder();return}
+    if(e.target.id==="confirmDebtOrder"){placeUserOrder(true);return}
     if(e.target.id==="submitGuestOrder"){
       const name=$("#guestName").value.trim(),phone=$("#guestPhone").value.trim();
       if(!name){toast("Diz o teu nome primeiro, boss.");return}
       const items=Object.entries(guestCart).filter(([id,q])=>q>0&&canOrderProduct(product(id))).map(([id,qty])=>{const p=product(id);return {productId:Number(id),qty,choices:{...selectedChoices(p,"guest")},unitPrice:selectedUnitPrice(p,"guest")}});
       const special=guestCustomRequest.trim();if(!items.length&&!special){guestCart={};render();toast("Esse food hoje bazou. Escolhe outro, boss.");return}
       const order={id:Math.max(0,...state.orders.map(o=>o.id))+1,type:"guest",guestName:name,guestPhone:phone,date:new Date().toISOString(),status:"pending",items,customRequest:special,needsContact:items.some(i=>product(i.productId)?.contactForFlavor||i.unitPrice===0)||Boolean(special),guestDonation:0};
-      state.orders.unshift(order);guestCart={};guestCartChoices={};guestCustomRequest="";customOpen.guest=false;save();toast("Pedido entrou na bichinha. Está nice! ✅");guestDonationModal(order);return;
+      state.orders.unshift(order);guestCart={};guestCartChoices={};guestCustomRequest="";customOpen.guest=false;save();guestDonationModal(order);celebrateOrder();return;
     }
 
     const ao=e.target.closest("[data-admin-order]");if(ao){editOrderModal(ao.dataset.adminOrder);return}
     if(e.target.id==="saveOrderStatus"){
       const o=state.orders.find(x=>x.id===Number(e.target.dataset.id));if(!o)return;
-      const inputs=$$('[data-order-price]'),status=$("#orderStatus").value,unpriced=inputs.find(input=>(Number(input.value)||0)<=0);if(status==="paid"&&unpriced){unpriced.focus();toast("Define todos os preços antes de marcar como pago, boss.");return}
+      const previousStatus=o.status,inputs=$$('[data-order-price]'),status=$("#orderStatus").value,unpriced=inputs.find(input=>(Number(input.value)||0)<=0);if(status==="paid"&&unpriced){unpriced.focus();toast("Define todos os preços antes de marcar como pago, boss.");return}
       inputs.forEach(input=>{const value=Math.max(0,Number(input.value)||0);if(input.hasAttribute("data-custom-price"))o.customPrice=value;else if(o.items[Number(input.dataset.itemIndex)])o.items[Number(input.dataset.itemIndex)].unitPrice=value});
-      o.status=status;o.needsContact=(o.items||[]).some(item=>itemPrice(item)<=0)||Boolean(o.customRequest&&Number(o.customPrice||0)<=0);o.priceAdjustedAt=new Date().toISOString();save();closeModal();render();toast("Pedido e preços atualizados. Está nice! 🧾");return
+      o.status=status;o.needsContact=(o.items||[]).some(item=>itemPrice(item)<=0)||Boolean(o.customRequest&&Number(o.customPrice||0)<=0);o.priceAdjustedAt=new Date().toISOString();save();closeModal();render();if(status!==previousStatus&&(status==="paid"||status==="debt")){orderStatusFeedback(status,o)}else toast("Pedido e preços atualizados. Está nice! 🧾");return
     }
     if(e.target.id==="newProduct"){productModal();return}
     const ep=e.target.closest("[data-edit-product]");if(ep){productModal(Number(ep.dataset.editProduct));return}
@@ -586,10 +643,14 @@
     }
     if(e.target.id==="resetUserPin"){
       const u=user(e.target.dataset.id);if(!u)return;
-      if(!confirm(`Reiniciar o PIN de ${u.name}? No próximo acesso, a pessoa vai criar um novo.`))return;
+      resetPinConfirmModal(u);return;
+    }
+    if(e.target.id==="confirmResetUserPin"){
+      const u=user(e.target.dataset.id);if(!u)return;
       u.pin="";u.pinConfigured=false;delete u.pinSetAt;save();closeModal();render();toast(`PIN de ${u.name} reiniciado.`);return;
     }
     if(e.target.id==="toggleGuest"){state.settings.guestOrdering=!state.settings.guestOrdering;save();render();toast(state.settings.guestOrdering?"Pedidos sem cadastro ativados.":"Pedidos sem cadastro desativados.");return}
+    const policy=e.target.closest("[data-balance-policy]");if(policy){state.settings.balancePolicy=policy.dataset.balancePolicy;save();render();toast(state.settings.balancePolicy==="block"?"Sem mola, o pedido fica bloqueado. 🛑":"Saldo negativo permitido. Entrou no território das dívidas. 😅");return}
     if(e.target.id==="saveDonationSettings"){
       const day=Math.min(28,Math.max(1,Number($("#donationDay").value)||5)),goal=$("#donationGoal").value.trim();
       if(!goal){toast("Escreve o objetivo da campanha.");return}
@@ -623,7 +684,8 @@
       if(amount<=0){toast("Mete uma mola válida, boss.");return}
       state.recharges.unshift({id:Date.now(),userId:uid,date:new Date().toISOString(),amount,note});save();closeModal();render();toast("Mola adicionada. Está nice!");return;
     }
-    if(e.target.id==="resetDemo"){if(confirm("Zerar todos os pedidos, movimentos, contribuições, saldos e PINs dos utilizadores?"))reset();return}
+    if(e.target.id==="resetDemo"){resetSystemConfirmModal();return}
+    if(e.target.id==="confirmSystemReset"){closeModal();reset();toast("Sistema zerado. O bread voltou à estaca zero. ♻️");return}
   });
 
   document.addEventListener("input",e=>{
@@ -651,6 +713,6 @@
   window.addEventListener("keydown",e=>{const modal=$("#modal");if(!modal.classList.contains("open"))return;if(e.key==="Escape"){e.preventDefault();closeModal();return}if(e.key==="Tab"){const focusable=$$('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[href],[tabindex]:not([tabindex="-1"])',modal).filter(el=>el.offsetParent!==null);if(!focusable.length)return;const first=focusable[0],last=focusable[focusable.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}});
   let lastFridayMode=isFridayMode();
   setInterval(()=>{const current=isFridayMode();if(current!==lastFridayMode){lastFridayMode=current;category="Todos";cart={};guestCart={};cartChoices={};guestCartChoices={};render();toast(current?"Modo Sexta-feira ativado! 🎉":"Modo Sexta-feira encerrado.")}},60000);
-  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=37").catch(()=>{});}
+  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=38").catch(()=>{});}
   render();
 })();
