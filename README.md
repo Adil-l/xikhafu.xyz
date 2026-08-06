@@ -12,7 +12,7 @@ O sistema também inclui modo especial de sexta-feira, cardápio com opções, H
 
 ## Acesso administrativo
 
-O PIN inicial do administrador é `1234`. Cada utilizador define o próprio PIN no primeiro acesso.
+O PIN administrativo é validado exclusivamente no Supabase e não existe um PIN padrão no frontend. Configure-o diretamente no ambiente seguro do projeto antes do primeiro uso. Cada utilizador define o próprio PIN no primeiro acesso.
 
 ## Executar localmente
 
@@ -26,4 +26,8 @@ Depois abra [http://127.0.0.1:8080](http://127.0.0.1:8080).
 
 O Supabase centraliza os PINs, saldos, dívidas, pedidos, recargas, contribuições, históricos e os dados agregados do Hall da Fome. Um PIN solicitado no primeiro dispositivo fica pendente até aprovação do administrador e, depois disso, funciona nos restantes dispositivos sem poder ser redefinido pelo utilizador.
 
-O navegador mantém uma cópia rápida dos dados para a interface, mas o Supabase é a fonte partilhada entre aparelhos. Alterações administrativas e novos pedidos são enviados ao servidor e as sessões abertas atualizam-se automaticamente.
+O navegador mantém uma cópia rápida dos dados para a interface, mas o Supabase é a fonte partilhada entre aparelhos. Novos pedidos são validados transacionalmente no servidor quando há ligação; sem ligação ficam pendentes no aparelho e são reenviados automaticamente. Alterações administrativas usam chaves estáveis e versão de atualização para evitar que um aparelho antigo reverta outro.
+
+## Testes
+
+Instale `playwright` no ambiente de desenvolvimento e execute o servidor local antes do fluxo E2E. A URL e o binário do navegador podem ser definidos com `BASE_URL` e `CHROME_PATH`.

@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const { chromium } = require("playwright");
 
 const baseURL = process.env.BASE_URL || "http://127.0.0.1:8090";
-const chromePath = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const chromePath = process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const openingPhrases = [
   "O estômago já enviou três notificações.",
   "O padeiro está a observar...",
@@ -171,7 +171,7 @@ async function adminFlow(browser) {
 }
 
 (async () => {
-  const browser = await chromium.launch({ headless: true, executablePath: chromePath });
+  const browser = await chromium.launch({ headless: true, ...(chromePath ? { executablePath: chromePath } : {}) });
   const results = [];
   for (const [name, flow] of [["utilizador", userFlow], ["convidado", guestFlow], ["administrador", adminFlow]]) {
     try {
