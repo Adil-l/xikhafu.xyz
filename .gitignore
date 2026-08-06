@@ -23,6 +23,9 @@ misc.xml
 deploymentTargetDropDown.xml
 render.experimental.xml
 
+# Vercel local project metadata
+.vercel/
+
 # Keystore files
 *.jks
 *.keystore
