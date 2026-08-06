@@ -24,6 +24,6 @@ Depois abra [http://127.0.0.1:8080](http://127.0.0.1:8080).
 
 ## Armazenamento
 
-Esta versão guarda os dados no navegador do dispositivo e sincroniza as alterações entre abas abertas no mesmo navegador. Cada aba mantém a sua própria sessão, permitindo testar utilizadores diferentes em paralelo.
+O Supabase centraliza o estado dos PINs e os dados agregados do Hall da Fome. Um PIN solicitado no primeiro dispositivo fica pendente até aprovação do administrador e, depois disso, funciona nos restantes dispositivos sem poder ser redefinido pelo utilizador.
 
-Para partilhar pedidos e o Hall da Fome entre telemóveis ou computadores diferentes, ainda será necessário ligar a aplicação a um servidor ou base de dados partilhada.
+O ranking é partilhado entre aparelhos. Os restantes dados operacionais continuam com uma cópia local no navegador, com sincronização entre abas do mesmo dispositivo.

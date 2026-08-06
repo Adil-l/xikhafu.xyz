@@ -2,6 +2,10 @@
 (() => {
   const KEY = "paoCadaDiaUnifiedV3";
   const SESSION_KEY = `${KEY}:session`;
+  const CLOUD_SESSION_KEY = `${KEY}:cloudSession`;
+  const DEVICE_KEY = `${KEY}:deviceId`;
+  const SUPABASE_URL = "https://ybuibskdiynfoubqrczt.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlidWlic2tkaXluZm91YnFyY3p0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyOTU3MzAsImV4cCI6MjA5MTg3MTczMH0.9-F3RNTh-XA-wRu4aMGWlIrRzQMIthkVNgE8fWmS1hQ";
   const DONATION_NUMBER = "876760317";
   const RECHARGE_NUMBER = "876760317";
   const REMOVED_PRODUCT_IDS = new Set([7,8]);
@@ -75,6 +79,9 @@
   let state = load();
   state.session = loadSession(state.session);
   save();
+  let cloudCredentials = loadCloudCredentials();
+  const cloudPinStates = new Map();
+  const deviceId = loadDeviceId();
   let page = "home";
   let cart = {};
   let guestCart = {};
@@ -114,6 +121,7 @@
     const menuUpdated=Number(data.settings?.menuVersion||0)>=1;
     const accountsReset=Number(data.settings?.accountsResetVersion||0)>=1;
     const cleanSlateUpdated=Number(data.settings?.cleanSlateVersion||0)>=1;
+    const cloudPinUpdated=Number(data.settings?.cloudPinVersion||0)>=1;
     data.settings={...seed.settings,...(data.settings||{})};
     if(!rosterUpdated){
       const existing=data.users||[],rosterIds=new Set(USER_ROSTER.map(u=>Number(u.id)));
@@ -134,6 +142,7 @@
       data.orders=[];data.recharges=[];data.donationPledges=[];data.session={mode:null,userId:null};
       data.settings.adminPin="1234";data.settings.cleanSlateVersion=1;
     }
+    if(!cloudPinUpdated){data.users=(data.users||[]).map(u=>({...u,pin:"",pinConfigured:false}));data.session={mode:null,userId:null};data.settings.cloudPinVersion=1}
     const productIds=new Set(),productNames=new Set();
     data.products=(data.products||[]).filter(p=>{const id=Number(p.id),name=String(p.name||"").trim().toLocaleLowerCase("pt");if(REMOVED_PRODUCT_IDS.has(id)||productIds.has(id)||productNames.has(name))return false;productIds.add(id);productNames.add(name);return true});
     data.products=data.products.map(p=>Number(p.id)===1?{...p,name:"Bread",category:"Breads",fridayOnly:false}:{...p,fridayOnly:p.fridayOnly??[3,4].includes(Number(p.id))});
@@ -143,16 +152,26 @@
   }
   function load(){try{return cleanRemovedProducts(JSON.parse(localStorage.getItem(KEY))||structuredClone(seed))}catch{return cleanRemovedProducts(structuredClone(seed))}}
   function loadSession(fallback={mode:null,userId:null}){try{return JSON.parse(sessionStorage.getItem(SESSION_KEY))||fallback||{mode:null,userId:null}}catch{return fallback||{mode:null,userId:null}}}
+  function loadCloudCredentials(){try{return JSON.parse(sessionStorage.getItem(CLOUD_SESSION_KEY))||{}}catch{return {}}}
+  function storeCloudCredentials(value){cloudCredentials=value||{};sessionStorage.setItem(CLOUD_SESSION_KEY,JSON.stringify(cloudCredentials))}
+  function loadDeviceId(){let id=localStorage.getItem(DEVICE_KEY);if(!id){id=crypto.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}`;localStorage.setItem(DEVICE_KEY,id)}return id}
   function save(){
     const sharedState={...state,session:{mode:null,userId:null}};
     localStorage.setItem(KEY,JSON.stringify(sharedState));
     sessionStorage.setItem(SESSION_KEY,JSON.stringify(state.session||{mode:null,userId:null}));
   }
-  function reset(){localStorage.removeItem(KEY);sessionStorage.removeItem(SESSION_KEY);state=cleanRemovedProducts(structuredClone(seed));page="home";adminSection="dashboard";cart={};guestCart={};cartChoices={};guestCartChoices={};customRequest="";guestCustomRequest="";save();render()}
+  function reset(){localStorage.removeItem(KEY);sessionStorage.removeItem(SESSION_KEY);sessionStorage.removeItem(CLOUD_SESSION_KEY);cloudCredentials={};state=cleanRemovedProducts(structuredClone(seed));page="home";adminSection="dashboard";cart={};guestCart={};cartChoices={};guestCartChoices={};customRequest="";guestCustomRequest="";save();render()}
+  async function cloudRpc(name,body){const response=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{method:"POST",headers:{apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${SUPABASE_ANON_KEY}`,"Content-Type":"application/json"},body:JSON.stringify(body)});if(!response.ok)throw new Error(`Supabase ${name}: ${response.status}`);const text=await response.text();return text?JSON.parse(text):null}
+  async function getCloudPinStatus(id){try{const status=await cloudRpc("user_pin_status",{p_user_id:Number(id)});cloudPinStates.set(Number(id),status);return status}catch{cloudPinStates.set(Number(id),"offline");return "offline"}}
+  async function loadAdminPinStates(){if(!cloudCredentials.adminPin)return;try{const rows=await cloudRpc("admin_pin_states",{p_admin_pin:cloudCredentials.adminPin});(rows||[]).forEach(row=>cloudPinStates.set(Number(row.user_id),row.locked_until&&new Date(row.locked_until)>new Date()?"locked":row.pin_status));return rows||[]}catch{return []}}
+  function rankingPayloadForOrder(o){const quantities=(o.items||[]).reduce((sum,item)=>{const p=product(item.productId),qty=Number(item.qty||0);if(p?.id===1||p?.name?.toLowerCase().includes("bread"))sum.bread_qty+=qty;if(p?.id===2||p?.name?.toLowerCase().includes("badjia"))sum.badjia_qty+=qty;if(["Refrescos","Sumos","Energéticos","Bebidas"].includes(p?.category))sum.drink_qty+=qty;return sum},{bread_qty:0,badjia_qty:0,drink_qty:0});return {sync_key:o.syncKey||`${deviceId}:${o.id}:${Date.parse(o.date)||0}`,user_id:Number(o.userId),ordered_at:o.date,status:o.status,total:orderTotal(o),...quantities}}
+  async function syncUserRanking(id,pin){if(!pin)return false;const payload=state.orders.filter(o=>o.type==="user"&&Number(o.userId)===Number(id)).slice(0,200).map(rankingPayloadForOrder);try{return await cloudRpc("sync_user_ranking_orders",{p_user_id:Number(id),p_pin:pin,payload})}catch{return false}}
+  async function syncAdminRanking(){if(!cloudCredentials.adminPin)return false;const payload=state.orders.filter(o=>o.type==="user").slice(0,500).map(rankingPayloadForOrder);try{return await cloudRpc("sync_admin_ranking_orders",{p_admin_pin:cloudCredentials.adminPin,payload})}catch{return false}}
+  async function loadCloudRanking(){const response=await fetch(`${SUPABASE_URL}/rest/v1/ranking_orders?select=user_id,status,total,bread_qty,badjia_qty,drink_qty`,{headers:{apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${SUPABASE_ANON_KEY}`}});if(!response.ok)throw new Error("Hall indisponível");return response.json()}
   function toast(text){const e=$("#toast");e.textContent="";requestAnimationFrame(()=>{e.textContent=text;e.classList.add("show")});clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),3600)}
   function openModal(html,onClose=null){const modal=$("#modal"),sheet=$(".sheet"),wasOpen=modal.classList.contains("open");if(!wasOpen)modalOpener=document.activeElement;modalCloseAction=onClose;$("#modalContent").innerHTML=`<div class="modal-brand"><span aria-hidden="true">🍞</span><strong>O Pão de Cada Dia</strong><button class="modal-close" data-close aria-label="Fechar janela"><span aria-hidden="true">×</span></button></div><div class="modal-body">${html}</div>`;const heading=$("#modalContent h3");if(heading){heading.id="modalTitle";heading.tabIndex=-1;sheet.setAttribute("aria-labelledby","modalTitle");sheet.removeAttribute("aria-label")}else{sheet.removeAttribute("aria-labelledby");sheet.setAttribute("aria-label","Janela de diálogo")}modal.classList.add("open");modal.setAttribute("aria-hidden","false");app.inert=true;document.body.classList.add("modal-open");requestAnimationFrame(()=>{(heading||sheet)?.focus()})}
   function closeModal(){const modal=$("#modal");if(!modal.classList.contains("open"))return;const fallback=modalCloseAction;modalCloseAction=null;modal.classList.remove("open");modal.setAttribute("aria-hidden","true");app.inert=false;document.body.classList.remove("modal-open");const restore=modalOpener;modalOpener=null;if(fallback){requestAnimationFrame(fallback);return}if(restore?.isConnected)requestAnimationFrame(()=>restore.focus())}
-  function logout(){closeModal();state.session={mode:null,userId:null};save();page="home";adminSection="dashboard";cart={};guestCart={};cartChoices={};guestCartChoices={};customRequest="";guestCustomRequest="";customOpen={user:false,guest:false};render()}
+  function logout(){closeModal();state.session={mode:null,userId:null};storeCloudCredentials({});save();page="home";adminSection="dashboard";cart={};guestCart={};cartChoices={};guestCartChoices={};customRequest="";guestCustomRequest="";customOpen={user:false,guest:false};render()}
   function statusText(s){return s==="paid"?"Pago":s==="debt"?"Em dívida":s==="cancelled"?"Cancelado":"Pendente"}
   function empty(emoji,text){return `<div class="empty"><div class="emoji">${emoji}</div><p>${text}</p></div>`}
   function afterBalanceReset(id,date){const reset=user(id)?.balanceResetAt;return !reset||new Date(date)>=new Date(reset)}
@@ -189,7 +208,7 @@
     openModal(`<div class="confirm-card"><div class="feedback-emoji">🔐</div><div class="eyebrow">REINICIAR PIN</div><h3>Dar um novo começo a ${esc(u.name)}?</h3><p>No próximo acesso, esta pessoa terá de criar um PIN novo de 4 números.</p><div class="sheet-actions"><button class="secondary" data-close>DEIXAR COMO ESTÁ</button><button class="primary orange" id="confirmResetUserPin" data-id="${u.id}">REINICIAR PIN</button></div></div>`);
   }
   function resetSystemConfirmModal(){
-    openModal(`<div class="confirm-card danger"><div class="feedback-emoji">♻️</div><div class="eyebrow">ZERAR O SISTEMA</div><h3>Apagar todo o mambo?</h3><p>Pedidos, movimentos, contribuições, saldos e PINs serão apagados. Esta ação não dá para desfazer.</p><div class="sheet-actions"><button class="secondary" data-close>CANCELAR</button><button class="primary orange" id="confirmSystemReset">SIM, ZERAR TUDO</button></div></div>`);
+    openModal(`<div class="confirm-card danger"><div class="feedback-emoji">♻️</div><div class="eyebrow">LIMPAR ESTE APARELHO</div><h3>Apagar os dados locais?</h3><p>Os dados guardados neste navegador serão limpos. PINs e Hall partilhados no Supabase serão preservados.</p><div class="sheet-actions"><button class="secondary" data-close>CANCELAR</button><button class="primary orange" id="confirmSystemReset">LIMPAR APARELHO</button></div></div>`);
   }
   function orderOwner(o){return o.type==="guest" ? {name:o.guestName||"Convidado",avatar:"👤"} : user(o.userId)||{name:"Utilizador removido",avatar:"❔"}}
   function itemSummary(o){const items=(o.items||[]).map(i=>{const choices=Object.values(i.choices||{}).join(", ");return `${product(i.productId)?.icon||"❔"} ×${i.qty}${choices?` (${esc(choices)})`:""}`}).join("  ");const special=o.customRequest?`${items?"  • ":""}📝 ${esc(o.customRequest)}`:"";return `${items}${special}${o.guestDonation?`  • 🚗 ${fmt(o.guestDonation)} MT`:""}`}
@@ -230,24 +249,29 @@
     donationTimer=setTimeout(show,220);
   }
 
-  function rankingModal(){
+  function rankingModal(cloudRows=null){
     const active=state.users.filter(u=>u.active!==false);
+    const remote=new Map();
+    if(cloudRows){cloudRows.filter(row=>row.status!=="cancelled").forEach(row=>{const id=Number(row.user_id),current=remote.get(id)||{spent:0,bread:0,badjia:0,drinks:0};current.spent+=Number(row.total||0);current.bread+=Number(row.bread_qty||0);current.badjia+=Number(row.badjia_qty||0);current.drinks+=Number(row.drink_qty||0);remote.set(id,current)})}
+    const metric=(u,key,local)=>cloudRows?(remote.get(Number(u.id))?.[key]||0):local(u);
     const score=fn=>active.map(u=>({u,value:fn(u)})).sort((a,b)=>b.value-a.value||a.u.name.localeCompare(b.u.name))[0];
-    const bread=u=>userItemQty(u.id,p=>p.id===1||p.name.toLowerCase().includes("bread"));
-    const badjia=u=>userItemQty(u.id,p=>p.id===2||p.name.toLowerCase().includes("badjia"));
-    const drinks=u=>userItemQty(u.id,p=>["Refrescos","Sumos","Energéticos","Bebidas"].includes(p.category));
-    const topThree=active.map(u=>({u,value:userAllSpent(u.id)})).filter(person=>person.value>0).sort((a,b)=>b.value-a.value||a.u.name.localeCompare(b.u.name)).slice(0,3);
+    const bread=u=>metric(u,"bread",person=>userItemQty(person.id,p=>p.id===1||p.name.toLowerCase().includes("bread")));
+    const badjia=u=>metric(u,"badjia",person=>userItemQty(person.id,p=>p.id===2||p.name.toLowerCase().includes("badjia")));
+    const drinks=u=>metric(u,"drinks",person=>userItemQty(person.id,p=>["Refrescos","Sumos","Energéticos","Bebidas"].includes(p.category)));
+    const spent=u=>metric(u,"spent",person=>userAllSpent(person.id));
+    const topThree=active.map(u=>({u,value:spent(u)})).filter(person=>person.value>0).sort((a,b)=>b.value-a.value||a.u.name.localeCompare(b.u.name)).slice(0,3);
     const podiumOrder=[topThree[1],topThree[0],topThree[2]];
     const podiumPlaces=[2,1,3];
     const leaders=[
       ["🥖","Maior consumidor de Bread",score(bread),"breads"],
       ["🥟","Rei das Badjias",score(badjia),"badjias"],
       ["🥤","Mestre do Refresco",score(drinks),"refrescos"],
-      ["💎","Cliente VIP",score(u=>userAllSpent(u.id)),"MT consumidos"]
+      ["💎","Cliente VIP",score(spent),"MT consumidos"]
     ];
     const winnerRow=([icon,title,leader,suffix])=>{const won=leader&&leader.value>0;return `<div class="ranking-row ${won?"":"muted"}"><span>${icon}</span><div><strong>${title}</strong>${won?`<small><b class="ranking-person">${esc(leader.u.name)}</b><span>• ${fmt(leader.value)} ${suffix}</span></small>`:`<small>Ainda sem campeão</small>`}</div>${won?`<b>${leader.u.avatar}</b>`:"<b>—</b>"}</div>`};
     const podium=podiumOrder.map((person,index)=>{const place=podiumPlaces[index];return person?`<div class="podium-person place-${place}"><div class="podium-avatar">${person.u.avatar}<span>${place===1?"👑":place===2?"🥈":"🥉"}</span></div><strong>${esc(person.u.name)}</strong><small>${fmt(person.value)} MT</small><div class="podium-block"><b>${place}º</b></div></div>`:`<div class="podium-person place-${place} empty-place"><div class="podium-avatar">🙂</div><strong>Por ocupar</strong><small>0 MT</small><div class="podium-block"><b>${place}º</b></div></div>`}).join("");
     openModal(`<div class="ranking-modal"><div class="ranking-crown">🏆</div><div class="eyebrow">RANKING MANINGUE SÉRIO 😅</div><h3>🥇 Hall da Fome</h3><p>Aqui não há esquema: os pedidos é que mandam.</p><div class="podium-title"><strong>TOP 3 DOS BOSSES</strong><small>Quem queimou mais mola em food</small></div><div class="podium">${podium}</div><div class="ranking-section"><strong>Campeões da fome</strong><small>Os bosses de cada categoria.</small></div><div class="ranking-list">${leaders.map(winnerRow).join("")}</div><button class="primary orange" data-close>BAZAR PARA COMER 😋</button></div>`);
+    if(cloudRows===null)loadCloudRanking().then(rows=>{if($(".ranking-modal"))rankingModal(rows)}).catch(()=>toast("O Hall partilhado está offline. Mostrei os dados deste aparelho."));
   }
 
   function entryView(){
@@ -448,7 +472,7 @@
     if(invalid){invalid.setAttribute("aria-invalid","true");invalid.focus();toast("Preenche todos os valores cobrados antes de imprimir, boss.");return false}
     inputs.forEach(input=>{const order=state.orders.find(o=>o.id===Number(input.dataset.orderId)),value=Math.max(0,Number(input.value)||0);if(!order)return;if(input.dataset.customPrice)order.customPrice=value;else if(order.items[Number(input.dataset.itemIndex)])order.items[Number(input.dataset.itemIndex)].unitPrice=value});
     receiptOrders(dateKey).forEach(order=>{order.needsContact=(order.items||[]).some(item=>itemPrice(item)<=0)||Boolean(order.customRequest&&Number(order.customPrice||0)<=0);order.priceAdjustedAt=new Date().toISOString()});
-    save();return true;
+    save();syncAdminRanking();return true;
   }
   function receiptAmount(total,uncertain){return uncertain?(total>0?`${fmt(total)} MT + confirmar`:"A confirmar"):`${fmt(total)} MT`}
   function dailyReceiptBody(dateKey){
@@ -471,7 +495,7 @@
   }
   function adminUsers(){
     return `<div class="head" style="margin-top:2px"><div><h2>Utilizadores</h2><p>Contas e saldos mensais.</p></div><button class="secondary" id="newUser">+ Utilizador</button></div>
-      <div class="card manage-list">${state.users.filter(u=>!u.legacyHidden).sort(byName).map(u=>`<div class="manage-row"><div class="face">${u.avatar}</div><div><strong>${u.name}</strong><small>Saldo base: ${fmt(u.monthlyBalance)} MT • Disponível: ${fmt(userAvailable(u.id))} MT • ${u.active?"Ativo":"Bloqueado"}</small></div><div class="action-row"><button class="mini-btn" data-edit-user="${u.id}">Editar</button><button class="mini-btn ${u.active?"warn":"ok"}" data-toggle-user="${u.id}">${u.active?"Bloquear":"Ativar"}</button></div></div>`).join("")}</div>`;
+      <div class="card manage-list">${state.users.filter(u=>!u.legacyHidden).sort(byName).map(u=>{const pinStatus=cloudPinStates.get(Number(u.id))||"loading",pinLabel={unset:"Sem PIN",pending:"PIN pendente",active:"PIN ativo",locked:"PIN bloqueado",loading:"A confirmar"}[pinStatus]||"Sem PIN";return `<div class="manage-row"><div class="face">${u.avatar}</div><div><strong>${u.name}</strong><small>Saldo: ${fmt(userAvailable(u.id))} MT • ${u.active?"Ativo":"Bloqueado"} • ${pinLabel}</small></div><div class="action-row">${pinStatus==="pending"?`<button class="mini-btn ok" data-approve-pin="${u.id}">Aprovar PIN</button>`:""}<button class="mini-btn" data-edit-user="${u.id}">Editar</button><button class="mini-btn ${u.active?"warn":"ok"}" data-toggle-user="${u.id}">${u.active?"Bloquear":"Ativar"}</button></div></div>`}).join("")}</div>`;
   }
   function adminSettings(){
     const monthPledges=(state.donationPledges||[]).filter(p=>isThisMonth(p.date));
@@ -483,7 +507,7 @@
       <div class="head"><div><h3>Campanha mensal do padeiro</h3><p>O aviso aparece uma vez por mês para cada pessoa.</p></div></div>
       <div class="card campaign-settings"><div class="campaign-title"><span>🚗</span><div><strong>Fundo do sonho</strong><small>A contribuição é descontada do saldo ao confirmar.</small></div></div><div class="pledge-summary"><span>Contribuições deste mês</span><strong>${fmt(pledgedTotal)} MT</strong><small>${monthPledges.length} ${monthPledges.length===1?"contribuição registada":"contribuições registadas"}</small></div>${monthPledges.length?`<div class="pledge-list">${monthPledges.slice(0,5).map(p=>`<div class="pledge-row"><div><strong>${esc(p.name||"Convidado")}</strong><small>${new Intl.DateTimeFormat("pt-PT",{day:"2-digit",month:"2-digit"}).format(new Date(p.date))}</small></div><b>${fmt(p.amount)} MT</b><button data-remove-pledge="${p.id}" aria-label="Remover contribuição de ${esc(p.name||"Convidado")}">×</button></div>`).join("")}</div>`:""}<div class="form-row"><label for="donationDay">DIA DO MÊS (1 A 28)</label><input id="donationDay" type="number" min="1" max="28" value="${Math.min(28,Math.max(1,Number(state.settings.donationDay)||5))}"></div><div class="form-row"><label for="donationGoal">OBJETIVO DA CAMPANHA</label><input id="donationGoal" maxlength="100" value="${esc(state.settings.donationGoal)}"></div><button class="primary orange" id="saveDonationSettings" style="margin-top:13px">GUARDAR CAMPANHA</button></div>
       <div class="head"><div><h3>Ações administrativas</h3><p>Ferramentas da demonstração.</p></div></div>
-      <div class="quick-grid"><button class="quick" id="adminRecharge"><span class="qicon">💰</span><strong>Adicionar recarga</strong><small>Creditar saldo a um utilizador.</small></button><button class="quick" id="resetDemo"><span class="qicon">♻️</span><strong>Zerar o sistema</strong><small>Apagar pedidos, movimentos e saldos.</small></button></div>`;
+      <div class="quick-grid"><button class="quick" id="adminRecharge"><span class="qicon">💰</span><strong>Adicionar recarga</strong><small>Creditar saldo a um utilizador.</small></button><button class="quick" id="resetDemo"><span class="qicon">♻️</span><strong>Limpar este aparelho</strong><small>Apagar apenas os dados locais.</small></button></div>`;
   }
 
   function render(){
@@ -497,17 +521,20 @@
   }
   function renderWithFocus(selector){render();requestAnimationFrame(()=>$(selector)?.focus())}
 
-  function loginPinFields(u){
-    if(u?.pinConfigured&&u.pin)return `<div class="first-pin-note ready"><span>🔐</span><div><strong>O teu PIN já está definido</strong><small>Mete os 4 números que escolheste no primeiro acesso.</small></div></div><div class="form-row"><label for="loginUserPin">TEU PIN</label><input id="loginUserPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="current-password" placeholder="••••"></div>`;
-    return `<div class="first-pin-note"><span>🆕</span><div><strong>Primeiro acesso, boss!</strong><small>Cria agora o PIN de 4 números que vais usar sempre.</small></div></div><div class="form-grid"><div class="form-row"><label for="newUserPin">NOVO PIN</label><input id="newUserPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password" placeholder="••••"></div><div class="form-row"><label for="confirmNewUserPin">CONFIRMAR PIN</label><input id="confirmNewUserPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password" placeholder="••••"></div></div>`;
+  function loginPinFields(u,status="loading"){
+    if(status==="loading")return `<div class="first-pin-note"><span>⏳</span><div><strong>A confirmar a tua conta</strong><small>Estamos a consultar o PIN guardado no sistema.</small></div></div>`;
+    if(status==="offline")return `<div class="first-pin-note"><span>📡</span><div><strong>Sem ligação ao servidor</strong><small>Não deu para confirmar o teu PIN. Tenta novamente.</small></div></div>`;
+    if(status==="pending")return `<div class="first-pin-note"><span>🕐</span><div><strong>PIN à espera do administrador</strong><small>O teu pedido já entrou. Assim que for aprovado, poderás entrar em qualquer dispositivo.</small></div></div>`;
+    if(status==="active"||status==="locked")return `<div class="first-pin-note ready"><span>${status==="locked"?"🔒":"🔐"}</span><div><strong>${status==="locked"?"Conta temporariamente bloqueada":"O teu PIN já está definido"}</strong><small>${status==="locked"?"Espera 15 minutos ou pede ajuda ao administrador.":"Mete os 4 números que escolheste. Funciona em qualquer dispositivo."}</small></div></div><div class="form-row"><label for="loginUserPin">TEU PIN</label><input id="loginUserPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="current-password" placeholder="••••" ${status==="locked"?"disabled":""}></div>`;
+    return `<div class="first-pin-note"><span>🆕</span><div><strong>Primeiro acesso, boss!</strong><small>Cria um PIN de 4 números. O administrador vai aprová-lo antes da primeira entrada.</small></div></div><div class="form-grid"><div class="form-row"><label for="newUserPin">NOVO PIN</label><input id="newUserPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password" placeholder="••••"></div><div class="form-row"><label for="confirmNewUserPin">CONFIRMAR PIN</label><input id="confirmNewUserPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password" placeholder="••••"></div></div>`;
   }
-  function refreshLoginPinFields(){const u=user($("#loginUser")?.value),box=$("#loginPinFields"),button=$("#confirmUserLogin");if(!u||!box)return;box.innerHTML=loginPinFields(u);button.textContent=u.pinConfigured?"ENTRAR, BOSS":"CRIAR PIN E ENTRAR"}
+  async function refreshLoginPinFields(){const u=user($("#loginUser")?.value),box=$("#loginPinFields"),button=$("#confirmUserLogin");if(!u||!box)return;box.innerHTML=loginPinFields(u,"loading");button.disabled=true;button.textContent="A CONFIRMAR...";const status=await getCloudPinStatus(u.id);if(!box.isConnected||Number($("#loginUser")?.value)!==Number(u.id))return;box.innerHTML=loginPinFields(u,status);button.disabled=["loading","offline","pending","locked","missing"].includes(status);button.textContent=status==="active"?"ENTRAR, BOSS":status==="unset"?"PEDIR APROVAÇÃO DO PIN":status==="pending"?"À ESPERA DO ADMIN":status==="locked"?"CONTA BLOQUEADA":"TENTAR NOVAMENTE"}
   function loginUserModal(){
     const loginUsers=state.users.filter(u=>u.active).sort(byName),first=loginUsers[0];
     openModal(`<div class="head" style="margin-top:0"><div><h3>Entrar como boss da fome</h3><p>Escolhe a tua conta. No primeiro acesso, crias o teu próprio PIN.</p></div><span style="font-size:34px">🙂</span></div>
       <div class="form-row"><label for="loginUser">UTILIZADOR</label><select id="loginUser">${loginUsers.map(u=>`<option value="${u.id}">${u.avatar} ${u.name}</option>`).join("")}</select></div>
-      <div id="loginPinFields">${loginPinFields(first)}</div>
-      <div class="sheet-actions"><button class="secondary" data-close>Agora não</button><button class="primary orange" id="confirmUserLogin">${first?.pinConfigured?"ENTRAR, BOSS":"CRIAR PIN E ENTRAR"}</button></div>`);
+      <div id="loginPinFields">${loginPinFields(first,"loading")}</div>
+      <div class="sheet-actions"><button class="secondary" data-close>Agora não</button><button class="primary orange" id="confirmUserLogin" disabled>A CONFIRMAR...</button></div>`);refreshLoginPinFields();
   }
   function loginAdminModal(){
     openModal(`<div class="head" style="margin-top:0"><div><h3>Cantinho do administrador</h3><p>Mete o PIN do mambo.</p></div><span style="font-size:34px">🧑🏽‍💼</span></div>
@@ -535,11 +562,12 @@
   }
   function userModal(id=null){
     const u=id?user(id):{name:"",avatar:"🙂",pin:"",pinConfigured:false,monthlyBalance:500,active:true};
+    const pinStatus=id?(cloudPinStates.get(Number(id))||"loading"):"unset",pinReady=pinStatus==="active"||pinStatus==="locked",pinPending=pinStatus==="pending";
     openModal(`<div class="head" style="margin-top:0"><div><h3>${id?"Editar utilizador":"Novo utilizador"}</h3><p>Conta e saldo mensal.</p></div><span style="font-size:34px">${u.avatar}</span></div>
       <div class="form-row"><label for="userName">NOME</label><input id="userName" value="${u.name}"></div>
       <div class="form-row"><label for="userAvatar">AVATAR</label><input id="userAvatar" value="${u.avatar}" maxlength="4"></div>
-      <div class="first-pin-note ${u.pinConfigured?"ready":""}"><span>${u.pinConfigured?"🔐":"🆕"}</span><div><strong>${u.pinConfigured?"PIN definido pelo utilizador":"PIN ainda não definido"}</strong><small>${u.pinConfigured?"Só reinicia se a pessoa esquecer.":"A pessoa vai criar o PIN no primeiro acesso."}</small></div></div>
-      ${id&&u.pinConfigured?`<button class="secondary reset-pin" id="resetUserPin" data-id="${u.id}">REINICIAR PIN ESQUECIDO</button>`:""}
+      <div class="first-pin-note ${pinReady?"ready":""}"><span>${pinReady?"🔐":pinPending?"🕐":"🆕"}</span><div><strong>${pinReady?"PIN sincronizado e ativo":pinPending?"PIN à espera de aprovação":"PIN ainda não definido"}</strong><small>${pinReady?"Funciona em todos os dispositivos.":pinPending?"Aprova na lista de utilizadores.":"A pessoa vai pedir o PIN no primeiro acesso."}</small></div></div>
+      ${id&&(pinReady||pinPending)?`<button class="secondary reset-pin" id="resetUserPin" data-id="${u.id}">REINICIAR PIN</button>`:""}
       <div class="form-row"><label for="userBalance">SALDO MENSAL (MT)</label><input id="userBalance" type="number" min="0" value="${u.monthlyBalance}"></div>
       <div class="sheet-actions"><button class="secondary" data-close>Cancelar</button><button class="primary" id="saveUser" data-id="${id||""}">Guardar utilizador</button></div>`);
   }
@@ -565,10 +593,10 @@
     if(insufficient&&!forceDebt){balanceRuleModal(total,available);return}
     if(insufficient&&state.settings.balancePolicy==="block"){balanceRuleModal(total,available);return}
     const order={id:Math.max(0,...state.orders.map(o=>o.id))+1,type:"user",userId:u.id,date:new Date().toISOString(),status:insufficient?"debt":"pending",items,customRequest:special,needsContact:items.some(i=>product(i.productId)?.contactForFlavor||i.unitPrice===0)||Boolean(special)};
-    state.orders.unshift(order);cart={};cartChoices={};customRequest="";customOpen.user=false;save();closeModal();page="home";render();celebrateOrder();if(insufficient)orderStatusFeedback("debt",order);
+    state.orders.unshift(order);cart={};cartChoices={};customRequest="";customOpen.user=false;save();syncUserRanking(u.id,cloudCredentials.userPin);closeModal();page="home";render();celebrateOrder();if(insufficient)orderStatusFeedback("debt",order);
   }
 
-  document.addEventListener("click",e=>{
+  document.addEventListener("click",async e=>{
     const entry=e.target.closest("[data-entry]");
     if(entry){
       if(entry.dataset.entry==="user")loginUserModal();
@@ -581,7 +609,7 @@
     if(e.target.closest("[data-logout]")){logout();return}
 
     const up=e.target.closest("[data-user-page]");if(up){page=up.dataset.userPage;renderWithFocus(`[data-user-page="${page}"]`);return}
-    const ad=e.target.closest("[data-admin-section]");if(ad){adminSection=ad.dataset.adminSection;renderWithFocus(`[data-admin-section="${adminSection}"]`);return}
+    const ad=e.target.closest("[data-admin-section]");if(ad){adminSection=ad.dataset.adminSection;if(adminSection==="users")await loadAdminPinStates();renderWithFocus(`[data-admin-section="${adminSection}"]`);return}
     const cat=e.target.closest("[data-category]");if(cat){category=cat.dataset.category;renderWithFocus(`[data-category="${category}"]`);return}
     const of=e.target.closest("[data-order-filter]");if(of){orderFilter=of.dataset.orderFilter;renderWithFocus(`[data-order-filter="${orderFilter}"]`);return}
     const customToggle=e.target.closest("[data-toggle-custom]");if(customToggle){const mode=customToggle.dataset.toggleCustom;customOpen[mode]=!customOpen[mode];renderWithFocus(`[data-toggle-custom="${mode}"]`);return}
@@ -609,17 +637,23 @@
 
     if(e.target.id==="confirmUserLogin"){
       const u=user($("#loginUser").value);if(!u)return;
-      if(!u.pinConfigured){
+      const cloudStatus=cloudPinStates.get(Number(u.id))||await getCloudPinStatus(u.id);
+      if(cloudStatus==="unset"){
         const pin=$("#newUserPin")?.value||"",confirmation=$("#confirmNewUserPin")?.value||"";
         if(!/^\d{4}$/.test(pin)){toast("O PIN deve ter exatamente 4 números, boss.");return}
         if(pin!==confirmation){toast("Os dois PINs não batem. Tenta outra vez.");return}
-        u.pin=pin;u.pinConfigured=true;u.pinSetAt=new Date().toISOString();save();toast("PIN criado! Guarda bem esses 4 números. 🔐");
-      }else if(u.pin!==($("#loginUserPin")?.value||"")){toast("Eish, boss! Esse PIN não bate.");return}
-      state.session={mode:"user",userId:u.id};save();closeModal();page="home";render();return;
+        const result=await cloudRpc("request_user_pin",{p_user_id:u.id,p_pin:pin}).catch(()=>"offline");cloudPinStates.set(Number(u.id),result);refreshLoginPinFields();toast(result==="pending"?"PIN enviado! Agora o administrador precisa aprovar. 🕐":"Não deu para guardar o PIN. Tenta novamente.");return;
+      }
+      if(cloudStatus!=="active"){toast(cloudStatus==="pending"?"O teu PIN ainda espera aprovação do administrador.":cloudStatus==="locked"?"Conta bloqueada por 15 minutos.":"Não deu para confirmar a conta.");return}
+      const pin=$("#loginUserPin")?.value||"";if(!/^\d{4}$/.test(pin)){toast("Mete os 4 números do teu PIN.");return}
+      const verified=await cloudRpc("verify_user_pin",{p_user_id:u.id,p_pin:pin}).catch(()=>"offline");
+      if(verified!=="ok"){if(verified==="locked")cloudPinStates.set(Number(u.id),"locked");toast(verified==="locked"?"Muitas tentativas. A conta ficou bloqueada por 15 minutos.":verified==="offline"?"Sem ligação ao servidor. Tenta novamente.":"Eish, boss! Esse PIN não bate.");refreshLoginPinFields();return}
+      u.pin="";u.pinConfigured=true;u.pinSetAt=new Date().toISOString();storeCloudCredentials({mode:"user",userId:u.id,userPin:pin});save();
+      state.session={mode:"user",userId:u.id};save();syncUserRanking(u.id,pin);closeModal();page="home";render();return;
     }
     if(e.target.id==="confirmAdminLogin"){
-      if($("#adminPin").value!==state.settings.adminPin){toast("Esse PIN não abre o mambo, boss.");return}
-      state.session={mode:"admin",userId:null};save();closeModal();adminSection="dashboard";render();return;
+      const adminPin=$("#adminPin").value;if(adminPin!==state.settings.adminPin){toast("Esse PIN não abre o mambo, boss.");return}
+      storeCloudCredentials({mode:"admin",adminPin});state.session={mode:"admin",userId:null};save();await loadAdminPinStates();await syncAdminRanking();closeModal();adminSection="dashboard";render();return;
     }
     if(e.target.id==="submitUserOrder"){placeUserOrder();return}
     if(e.target.id==="confirmDebtOrder"){placeUserOrder(true);return}
@@ -637,7 +671,7 @@
       const o=state.orders.find(x=>x.id===Number(e.target.dataset.id));if(!o)return;
       const previousStatus=o.status,inputs=$$('[data-order-price]'),status=$("#orderStatus").value,unpriced=inputs.find(input=>(Number(input.value)||0)<=0);if(status==="paid"&&unpriced){unpriced.focus();toast("Define todos os preços antes de marcar como pago, boss.");return}
       inputs.forEach(input=>{const value=Math.max(0,Number(input.value)||0);if(input.hasAttribute("data-custom-price"))o.customPrice=value;else if(o.items[Number(input.dataset.itemIndex)])o.items[Number(input.dataset.itemIndex)].unitPrice=value});
-      o.status=status;o.needsContact=(o.items||[]).some(item=>itemPrice(item)<=0)||Boolean(o.customRequest&&Number(o.customPrice||0)<=0);o.priceAdjustedAt=new Date().toISOString();save();closeModal();render();if(status!==previousStatus&&(status==="paid"||status==="debt")){orderStatusFeedback(status,o)}else toast("Pedido e preços atualizados. Está nice! 🧾");return
+      o.status=status;o.needsContact=(o.items||[]).some(item=>itemPrice(item)<=0)||Boolean(o.customRequest&&Number(o.customPrice||0)<=0);o.priceAdjustedAt=new Date().toISOString();save();syncAdminRanking();closeModal();render();if(status!==previousStatus&&(status==="paid"||status==="debt")){orderStatusFeedback(status,o)}else toast("Pedido e preços atualizados. Está nice! 🧾");return
     }
     if(e.target.id==="newProduct"){productModal();return}
     const ep=e.target.closest("[data-edit-product]");if(ep){productModal(Number(ep.dataset.editProduct));return}
@@ -654,8 +688,8 @@
     if(e.target.id==="saveUser"){
       const id=Number(e.target.dataset.id),name=$("#userName").value.trim(),avatar=$("#userAvatar").value.trim()||"🙂",monthlyBalance=Number($("#userBalance").value);
       if(!name||monthlyBalance<0){toast("Preenche os dados corretamente.");return}
-      if(id){Object.assign(user(id),{name,avatar,monthlyBalance})}else state.users.push({id:Math.max(0,...state.users.map(u=>u.id))+1,name,avatar,pin:"",pinConfigured:false,monthlyBalance,active:true});
-      save();closeModal();render();toast("Utilizador guardado.");return;
+      const uid=id||Math.max(0,...state.users.map(u=>u.id))+1;if(id){Object.assign(user(id),{name,avatar,monthlyBalance})}else state.users.push({id:uid,name,avatar,pin:"",pinConfigured:false,monthlyBalance,active:true});
+      const cloudSaved=await cloudRpc("admin_upsert_app_user",{p_admin_pin:cloudCredentials.adminPin,p_user_id:uid,p_user_name:name,p_avatar:avatar}).catch(()=>false);if(!cloudSaved){toast("Não deu para guardar este utilizador no servidor.");return}cloudPinStates.set(uid,cloudPinStates.get(uid)||"unset");save();closeModal();render();toast("Utilizador guardado em todos os dispositivos.");return;
     }
     if(e.target.id==="resetUserPin"){
       const u=user(e.target.dataset.id);if(!u)return;
@@ -663,8 +697,9 @@
     }
     if(e.target.id==="confirmResetUserPin"){
       const u=user(e.target.dataset.id);if(!u)return;
-      u.pin="";u.pinConfigured=false;delete u.pinSetAt;save();closeModal();render();toast(`PIN de ${u.name} reiniciado.`);return;
+      const resetOk=await cloudRpc("reset_user_pin",{p_admin_pin:cloudCredentials.adminPin,p_user_id:u.id}).catch(()=>false);if(!resetOk){toast("Não deu para reiniciar o PIN no servidor.");return}u.pin="";u.pinConfigured=false;delete u.pinSetAt;cloudPinStates.set(Number(u.id),"unset");save();closeModal();render();toast(`PIN de ${u.name} reiniciado em todos os dispositivos.`);return;
     }
+    const approvePin=e.target.closest("[data-approve-pin]");if(approvePin){const uid=Number(approvePin.dataset.approvePin),approved=await cloudRpc("approve_user_pin",{p_admin_pin:cloudCredentials.adminPin,p_user_id:uid}).catch(()=>false);if(!approved){toast("Não deu para aprovar este PIN.");return}cloudPinStates.set(uid,"active");render();toast(`PIN de ${user(uid)?.name||"utilizador"} aprovado. Já pode entrar! 🔐`);return}
     if(e.target.id==="toggleGuest"){state.settings.guestOrdering=!state.settings.guestOrdering;save();render();toast(state.settings.guestOrdering?"Pedidos sem cadastro ativados.":"Pedidos sem cadastro desativados.");return}
     const policy=e.target.closest("[data-balance-policy]");if(policy){state.settings.balancePolicy=policy.dataset.balancePolicy;save();render();toast(state.settings.balancePolicy==="block"?"Sem mola, o pedido fica bloqueado. 🛑":"Saldo negativo permitido. Entrou no território das dívidas. 😅");return}
     if(e.target.id==="saveDonationSettings"){
@@ -701,7 +736,7 @@
       state.recharges.unshift({id:Date.now(),userId:uid,date:new Date().toISOString(),amount,note});save();closeModal();render();toast("Mola adicionada. Está nice!");return;
     }
     if(e.target.id==="resetDemo"){resetSystemConfirmModal();return}
-    if(e.target.id==="confirmSystemReset"){closeModal();reset();toast("Sistema zerado. O bread voltou à estaca zero. ♻️");return}
+    if(e.target.id==="confirmSystemReset"){closeModal();reset();toast("Dados locais limpos. Os dados partilhados no Supabase foram preservados. ♻️");return}
   });
 
   document.addEventListener("input",e=>{
@@ -736,6 +771,6 @@
   });
   let lastFridayMode=isFridayMode();
   setInterval(()=>{const current=isFridayMode();if(current!==lastFridayMode){lastFridayMode=current;category="Todos";cart={};guestCart={};cartChoices={};guestCartChoices={};render();toast(current?"Modo Sexta-feira ativado! 🎉":"Modo Sexta-feira encerrado.")}},60000);
-  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=41").catch(()=>{});}
+  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=43").catch(()=>{});}
   render();
 })();

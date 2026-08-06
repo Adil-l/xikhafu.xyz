@@ -1,0 +1,2 @@
+-- Migração já aplicada anteriormente no projeto Supabase Slay.
+-- Marcador local para preservar o histórico remoto existente.
