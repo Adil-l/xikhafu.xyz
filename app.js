@@ -4,18 +4,18 @@
   const DONATION_NUMBER = "876760317";
   const REMOVED_PRODUCT_IDS = new Set([7,8]);
   const USER_ROSTER = [
-    {id:1,name:"Adilson",avatar:"👨🏽‍💻",pin:"",pinConfigured:false,monthlyBalance:500,active:true},
-    {id:2,name:"Kelton",avatar:"🦁",pin:"",pinConfigured:false,monthlyBalance:450,active:true},
-    {id:3,name:"Gizela",avatar:"🐼",pin:"",pinConfigured:false,monthlyBalance:400,active:true},
-    {id:6,name:"Alanice",avatar:"🌸",pin:"",pinConfigured:false,monthlyBalance:500,active:true},
-    {id:7,name:"Elias",avatar:"🦅",pin:"",pinConfigured:false,monthlyBalance:500,active:true},
-    {id:8,name:"Daniel",avatar:"🐯",pin:"",pinConfigured:false,monthlyBalance:500,active:true},
-    {id:9,name:"Edson",avatar:"😎",pin:"",pinConfigured:false,monthlyBalance:500,active:true},
-    {id:10,name:"Nehemias",avatar:"🐺",pin:"",pinConfigured:false,monthlyBalance:500,active:true},
-    {id:11,name:"Deolinda",avatar:"🌻",pin:"",pinConfigured:false,monthlyBalance:500,active:true},
-    {id:12,name:"Jorge",avatar:"🐻",pin:"",pinConfigured:false,monthlyBalance:500,active:true},
-    {id:13,name:"Luisa",avatar:"🦋",pin:"",pinConfigured:false,monthlyBalance:500,active:true},
-    {id:14,name:"Wesley",avatar:"⚡",pin:"",pinConfigured:false,monthlyBalance:500,active:true}
+    {id:1,name:"Adilson",avatar:"👨🏽‍💻",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:2,name:"Kelton",avatar:"🦁",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:3,name:"Gizela",avatar:"🐼",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:6,name:"Alanice",avatar:"🌸",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:7,name:"Elias",avatar:"🦅",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:8,name:"Daniel",avatar:"🐯",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:9,name:"Edson",avatar:"😎",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:10,name:"Nehemias",avatar:"🐺",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:11,name:"Deolinda",avatar:"🌻",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:12,name:"Jorge",avatar:"🐻",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:13,name:"Luisa",avatar:"🦋",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:14,name:"Wesley",avatar:"⚡",pin:"",pinConfigured:false,monthlyBalance:0,active:true}
   ];
   const MENU_PRODUCTS = [
     {id:1,name:"Bread",icon:"🥖",price:12,category:"Breads",active:true,fridayOnly:false,options:[{key:"preco",label:"Escolhe o preço",choices:[{label:"12 MT",price:12},{label:"14 MT",price:14}]}]},
@@ -54,14 +54,8 @@
     settings:{guestOrdering:true,adminPin:"1234",donationDay:5,donationGoal:"o primeiro carro do padeiro (ou pelo menos um Yango 😅)"},
     users:USER_ROSTER.map(u=>({...u})),
     products:MENU_PRODUCTS.map(p=>structuredClone(p)),
-    orders:[
-      {id:128,type:"user",userId:1,date:new Date().toISOString(),status:"pending",items:[{productId:1,qty:2},{productId:2,qty:5}]},
-      {id:127,type:"user",userId:2,date:new Date().toISOString(),status:"paid",items:[{productId:1,qty:1}]},
-      {id:126,type:"guest",guestName:"Mokizzow",guestPhone:"",date:new Date().toISOString(),status:"pending",items:[{productId:1,qty:1},{productId:3,qty:1}]},
-      {id:125,type:"user",userId:3,date:new Date(Date.now()-86400000*2).toISOString(),status:"paid",items:[{productId:1,qty:2},{productId:2,qty:10}]},
-      {id:124,type:"user",userId:1,date:new Date(Date.now()-86400000*4).toISOString(),status:"paid",items:[{productId:3,qty:1}]}
-    ],
-    recharges:[{id:1,userId:1,date:new Date(Date.now()-86400000*3).toISOString(),amount:100,note:"Recarga extra"}],
+    orders:[],
+    recharges:[],
     donationPledges:[],
     session:{mode:null,userId:null}
   };
@@ -106,6 +100,7 @@
     const pinSetupUpdated=Number(data.settings?.pinSetupVersion||0)>=1;
     const menuUpdated=Number(data.settings?.menuVersion||0)>=1;
     const accountsReset=Number(data.settings?.accountsResetVersion||0)>=1;
+    const cleanSlateUpdated=Number(data.settings?.cleanSlateVersion||0)>=1;
     data.settings={...seed.settings,...(data.settings||{})};
     if(!rosterUpdated){
       const existing=data.users||[],normal=name=>String(name||"").trim().toLowerCase().replace("gisela","gizela");
@@ -120,6 +115,12 @@
       const oldProducts=data.products||[];
       data.orders=(data.orders||[]).map(o=>({...o,items:(o.items||[]).map(i=>{if(i.unitPrice!=null)return i;const old=oldProducts.find(p=>Number(p.id)===Number(i.productId));return {...i,unitPrice:Number(old?.price||0)}})}));
       data.products=MENU_PRODUCTS.map(p=>structuredClone(p));data.settings.menuVersion=1;
+    }
+    if(!cleanSlateUpdated){
+      const resetAt=new Date().toISOString();
+      data.users=(data.users||[]).map(u=>({...u,monthlyBalance:0,pin:"",pinConfigured:false,balanceResetAt:resetAt}));
+      data.orders=[];data.recharges=[];data.donationPledges=[];data.session={mode:null,userId:null};
+      data.settings.adminPin="1234";data.settings.cleanSlateVersion=1;
     }
     const productIds=new Set(),productNames=new Set();
     data.products=(data.products||[]).filter(p=>{const id=Number(p.id),name=String(p.name||"").trim().toLocaleLowerCase("pt");if(REMOVED_PRODUCT_IDS.has(id)||productIds.has(id)||productNames.has(name))return false;productIds.add(id);productNames.add(name);return true});
@@ -198,7 +199,7 @@
     const bread=u=>userItemQty(u.id,p=>p.id===1||p.name.toLowerCase().includes("bread"));
     const badjia=u=>userItemQty(u.id,p=>p.id===2||p.name.toLowerCase().includes("badjia"));
     const drinks=u=>userItemQty(u.id,p=>["Refrescos","Sumos","Energéticos","Bebidas"].includes(p.category));
-    const topThree=active.map(u=>({u,value:userAllSpent(u.id)})).sort((a,b)=>b.value-a.value||a.u.name.localeCompare(b.u.name)).slice(0,3);
+    const topThree=active.map(u=>({u,value:userAllSpent(u.id)})).filter(person=>person.value>0).sort((a,b)=>b.value-a.value||a.u.name.localeCompare(b.u.name)).slice(0,3);
     const podiumOrder=[topThree[1],topThree[0],topThree[2]];
     const podiumPlaces=[2,1,3];
     const leaders=[
@@ -409,7 +410,7 @@
       <div class="head"><div><h3>Campanha mensal do padeiro</h3><p>O aviso aparece uma vez por mês para cada pessoa.</p></div></div>
       <div class="card campaign-settings"><div class="campaign-title"><span>🚗</span><div><strong>Fundo do sonho</strong><small>A contribuição é descontada do saldo ao confirmar.</small></div></div><div class="pledge-summary"><span>Contribuições deste mês</span><strong>${fmt(pledgedTotal)} MT</strong><small>${monthPledges.length} ${monthPledges.length===1?"contribuição registada":"contribuições registadas"}</small></div>${monthPledges.length?`<div class="pledge-list">${monthPledges.slice(0,5).map(p=>`<div class="pledge-row"><div><strong>${esc(p.name||"Convidado")}</strong><small>${new Intl.DateTimeFormat("pt-PT",{day:"2-digit",month:"2-digit"}).format(new Date(p.date))}</small></div><b>${fmt(p.amount)} MT</b><button data-remove-pledge="${p.id}" aria-label="Remover contribuição de ${esc(p.name||"Convidado")}">×</button></div>`).join("")}</div>`:""}<div class="form-row"><label for="donationDay">DIA DO MÊS (1 A 28)</label><input id="donationDay" type="number" min="1" max="28" value="${Math.min(28,Math.max(1,Number(state.settings.donationDay)||5))}"></div><div class="form-row"><label for="donationGoal">OBJETIVO DA CAMPANHA</label><input id="donationGoal" maxlength="100" value="${esc(state.settings.donationGoal)}"></div><button class="primary orange" id="saveDonationSettings" style="margin-top:13px">GUARDAR CAMPANHA</button></div>
       <div class="head"><div><h3>Ações administrativas</h3><p>Ferramentas da demonstração.</p></div></div>
-      <div class="quick-grid"><button class="quick" id="adminRecharge"><span class="qicon">💰</span><strong>Adicionar recarga</strong><small>Creditar saldo a um utilizador.</small></button><button class="quick" id="resetDemo"><span class="qicon">♻️</span><strong>Repor demonstração</strong><small>Restaurar todos os dados iniciais.</small></button></div>`;
+      <div class="quick-grid"><button class="quick" id="adminRecharge"><span class="qicon">💰</span><strong>Adicionar recarga</strong><small>Creditar saldo a um utilizador.</small></button><button class="quick" id="resetDemo"><span class="qicon">♻️</span><strong>Zerar o sistema</strong><small>Apagar pedidos, movimentos e saldos.</small></button></div>`;
   }
 
   function render(){
@@ -600,7 +601,7 @@
       if(amount<=0){toast("Mete uma mola válida, boss.");return}
       state.recharges.unshift({id:Date.now(),userId:uid,date:new Date().toISOString(),amount,note});save();closeModal();render();toast("Mola adicionada. Está nice!");return;
     }
-    if(e.target.id==="resetDemo"){if(confirm("Repor todos os dados da demonstração?"))reset();return}
+    if(e.target.id==="resetDemo"){if(confirm("Zerar todos os pedidos, movimentos, contribuições, saldos e PINs dos utilizadores?"))reset();return}
   });
 
   document.addEventListener("input",e=>{
@@ -628,6 +629,6 @@
   window.addEventListener("keydown",e=>{const modal=$("#modal");if(!modal.classList.contains("open"))return;if(e.key==="Escape"){e.preventDefault();closeModal();return}if(e.key==="Tab"){const focusable=$$('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[href],[tabindex]:not([tabindex="-1"])',modal).filter(el=>el.offsetParent!==null);if(!focusable.length)return;const first=focusable[0],last=focusable[focusable.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}});
   let lastFridayMode=isFridayMode();
   setInterval(()=>{const current=isFridayMode();if(current!==lastFridayMode){lastFridayMode=current;category="Todos";cart={};guestCart={};cartChoices={};guestCartChoices={};render();toast(current?"Modo Sexta-feira ativado! 🎉":"Modo Sexta-feira encerrado.")}},60000);
-  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=34").catch(()=>{});}
+  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=35").catch(()=>{});}
   render();
 })();
