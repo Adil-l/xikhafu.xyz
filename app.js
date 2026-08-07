@@ -534,11 +534,30 @@
     save();void syncAdminOperational().catch(()=>{});return true;
   }
   function receiptAmount(total,uncertain){return uncertain?(total>0?`${fmt(total)} MT + confirmar`:"A confirmar"):`${fmt(total)} MT`}
+  function receiptQuantityGroups(dateKey){
+    const groups=new Map();
+    receiptOrders(dateKey).forEach(order=>(order.items||[]).forEach(item=>{
+      const quantity=Math.max(0,Number(item.qty)||0);if(!quantity)return;
+      const p=product(item.productId),key=String(item.productId);
+      if(!groups.has(key))groups.set(key,{icon:p?.icon||"❔",name:p?.name||"Produto",total:0,variants:new Map()});
+      const group=groups.get(key);group.total+=quantity;
+      const choices=Object.values(item.choices||{}).map(choice=>String(choice).trim()).filter(Boolean);
+      if(choices.length){const variant=choices.join(" • ");group.variants.set(variant,(group.variants.get(variant)||0)+quantity)}
+    }));
+    return [...groups.values()].sort((a,b)=>a.name.localeCompare(b.name,"pt",{sensitivity:"base"}));
+  }
+  function receiptQuantitySummary(dateKey){
+    const groups=receiptQuantityGroups(dateKey);if(!groups.length)return "";
+    const total=groups.reduce((sum,group)=>sum+group.total,0);
+    const printStyles=`<style media="print">.receipt-quantity-summary{margin:16px 0;padding:12px;border:1px solid #ccc;border-radius:10px}.receipt-quantity-head{display:flex;align-items:center;justify-content:space-between;gap:15px;padding-bottom:9px;border-bottom:1px solid #ddd}.receipt-quantity-head>div{display:flex;align-items:center;gap:8px}.receipt-quantity-head strong,.receipt-quantity-head small{display:block}.receipt-quantity-head small{margin-top:3px;color:#777;font-size:10px}.receipt-quantity-head>b{white-space:nowrap}.receipt-quantity-group{border-bottom:1px solid #eee}.receipt-quantity-group:last-child{border-bottom:0}.receipt-quantity-row,.receipt-quantity-variant{display:flex;align-items:center;justify-content:space-between;gap:15px}.receipt-quantity-row{padding:6px 0;font-weight:bold}.receipt-quantity-row span{display:flex;align-items:center;gap:6px}.receipt-quantity-row i{font-style:normal}.receipt-quantity-variants{padding:0 0 5px 23px}.receipt-quantity-variant{padding:3px 0;color:#777;font-size:10px}</style>`;
+    const rows=groups.map(group=>`<div class="receipt-quantity-group"><div class="receipt-quantity-row"><span><i>${esc(group.icon)}</i>${esc(group.name)}</span><b>${fmt(group.total)} un.</b></div>${group.variants.size?`<div class="receipt-quantity-variants">${[...group.variants.entries()].map(([variant,quantity])=>`<div class="receipt-quantity-variant"><span>↳ ${esc(variant)}</span><b>${fmt(quantity)} un.</b></div>`).join("")}</div>`:""}</div>`).join("");
+    return `${printStyles}<section class="receipt-quantity-summary" aria-label="Resumo de quantidades"><div class="receipt-quantity-head"><div><span>📦</span><div><strong>Resumo de produção</strong><small>Total por produto e escolha.</small></div></div><b>${fmt(total)} un.</b></div><div class="receipt-quantity-list">${rows}</div></section>`;
+  }
   function dailyReceiptBody(dateKey){
     const orders=receiptOrders(dateKey),groups=receiptGroups(dateKey),grandTotal=orders.reduce((sum,o)=>sum+orderTotal(o),0),uncertain=orders.some(o=>o.needsContact),dateLabel=new Intl.DateTimeFormat("pt-PT",{weekday:"long",day:"2-digit",month:"long",year:"numeric"}).format(new Date(`${dateKey}T12:00:00`));
     if(!orders.length)return `<div class="receipt-empty"><span>🧾</span><strong>Sem pedidos neste dia</strong><small>Escolhe outra data para extrair o recibo.</small></div>`;
     const groupHtml=groups.map(group=>{const personTotal=group.orders.reduce((sum,o)=>sum+orderTotal(o),0),personUncertain=group.orders.some(o=>o.needsContact);return `<section class="receipt-person"><div class="receipt-person-head"><div><span>${group.owner.avatar}</span><strong>${esc(group.owner.name)}</strong></div><b>${receiptAmount(personTotal,personUncertain)}</b></div>${group.orders.map(o=>`<div class="receipt-order"><div class="receipt-order-head"><span>Pedido #${o.id} • ${new Intl.DateTimeFormat("pt-PT",{hour:"2-digit",minute:"2-digit"}).format(new Date(o.date))}</span><b>${orderTotalLabel(o)}</b></div><div class="receipt-lines">${(o.items||[]).map(i=>{const p=product(i.productId),choices=Object.values(i.choices||{}).join(", "),price=itemPrice(i);return `<div><span>${p?.icon||"❔"} ${esc(p?.name||"Produto")}${choices?` <small>(${esc(choices)})</small>`:""} × ${i.qty}</span><b>${price>0?`${fmt(price*i.qty)} MT`:"A confirmar"}</b></div>`}).join("")}${o.customRequest?`<div><span>📝 ${esc(o.customRequest)}</span><b>${Number(o.customPrice||0)>0?`${fmt(o.customPrice)} MT`:"A confirmar"}</b></div>`:""}${o.guestDonation?`<div><span>🚗 Contribuição ao padeiro</span><b>${fmt(o.guestDonation)} MT</b></div>`:""}</div></div>`).join("")}</section>`}).join("");
-    return `<div class="receipt-paper"><div class="receipt-brand"><span>🍞</span><div><strong>O Pão de Cada Dia</strong><small>Recibo diário • ${dateLabel}</small></div></div><div class="receipt-summary"><div><span>Pessoas</span><b>${groups.length}</b></div><div><span>Pedidos</span><b>${orders.length}</b></div><div><span>Total</span><b>${receiptAmount(grandTotal,uncertain)}</b></div></div>${groupHtml}<div class="receipt-grand"><span>Total do dia</span><strong>${receiptAmount(grandTotal,uncertain)}</strong></div><small class="receipt-note">Pedidos cancelados não entram neste recibo. Valores por confirmar devem ser preenchidos antes da impressão.</small></div>`;
+    return `<div class="receipt-paper"><div class="receipt-brand"><span>🍞</span><div><strong>O Pão de Cada Dia</strong><small>Recibo diário • ${dateLabel}</small></div></div><div class="receipt-summary"><div><span>Pessoas</span><b>${groups.length}</b></div><div><span>Pedidos</span><b>${orders.length}</b></div><div><span>Total</span><b>${receiptAmount(grandTotal,uncertain)}</b></div></div>${receiptQuantitySummary(dateKey)}${groupHtml}<div class="receipt-grand"><span>Total do dia</span><strong>${receiptAmount(grandTotal,uncertain)}</strong></div><small class="receipt-note">Pedidos cancelados não entram neste recibo. Valores por confirmar devem ser preenchidos antes da impressão.</small></div>`;
   }
   function dailyReceiptModal(dateKey=localDateKey()){
     const missing=receiptMissingPrices(dateKey);
@@ -868,7 +887,7 @@
   setInterval(refreshOperationalState,20000);
   let lastFridayMode=isFridayMode();
   setInterval(()=>{const current=isFridayMode();if(current!==lastFridayMode){lastFridayMode=current;category="Todos";cart={};guestCart={};cartChoices={};guestCartChoices={};render();toast(current?"Modo Sexta-feira ativado! 🎉":"Modo Sexta-feira encerrado.")}},60000);
-  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=48").catch(()=>{});}
+  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=49").catch(()=>{});}
   render();
   hydratePublicBootstrap().then(ok=>{if(ok&&!state.session.mode)render()});
 })();
