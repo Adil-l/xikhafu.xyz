@@ -109,6 +109,7 @@
   let customOpen = {user:false,guest:false};
   let category = "Todos";
   let orderFilter = "Todos";
+  let adminOrderDate = "";
   let adminSection = "dashboard";
   let donationTimer;
   let modalOpener = null;
@@ -486,19 +487,22 @@
       <div class="head"><div><h3>Resumo do mês</h3><p>${monthName}</p></div></div>
       <div class="admin-kpis"><div class="card kpi"><div class="kicon">🧾</div><strong>${month.length}</strong><span>Pedidos no mês</span></div><div class="card kpi"><div class="kicon">👤</div><strong>${guest.length}</strong><span>Pedidos sem cadastro</span></div><div class="card kpi"><div class="kicon">⏳</div><strong>${pending.length}</strong><span>Pedidos pendentes</span></div><div class="card kpi"><div class="kicon">💰</div><strong>${fmt(revenue)} MT</strong><span>Volume registado</span></div></div>
       <div class="head"><div><h3>Pedidos de hoje</h3><p>Utilizadores e convidados.</p></div><button class="secondary receipt-open" id="openDailyReceipt">🧾 Recibo do dia</button></div>
-      <div class="card orders">${todayOrders.length?todayOrders.slice(0,5).map(adminOrderRow).join(""):empty("🍽️","Hoje está calmo, boss. Ainda não entrou food.")}</div>`;
+      <div class="card orders">${todayOrders.length?todayOrders.slice(0,5).map(o=>adminOrderRow(o,false)).join(""):empty("🍽️","Hoje está calmo, boss. Ainda não entrou food.")}</div>`;
   }
-  function adminOrderRow(o){
+  function adminOrderRow(o,canDelete=false){
     const owner=orderOwner(o);
-    return `<button class="order order-button" data-admin-order="${o.id}" aria-label="Abrir pedido ${o.id} de ${esc(owner.name)}"><div class="face">${esc(owner.avatar)}</div><div><strong>${esc(owner.name)}</strong><small>${itemSummary(o)} ${o.type==="guest"?"• sem cadastro":""}</small></div><div class="side"><b>${orderTotalLabel(o)}</b><span class="status ${o.type==="guest"?"guest-tag":o.status}">${o.type==="guest"?"Convidado":statusText(o.status)}</span><span class="status ${o.status}">${statusText(o.status)}</span></div></button>`;
+    const row=`<button class="order order-button" data-admin-order="${o.id}" aria-label="Abrir pedido ${o.id} de ${esc(owner.name)}"><div class="face">${esc(owner.avatar)}</div><div><strong>${esc(owner.name)}</strong><small>${itemSummary(o)} ${o.type==="guest"?"• sem cadastro":""}</small></div><div class="side"><b>${orderTotalLabel(o)}</b><span class="status ${o.type==="guest"?"guest-tag":o.status}">${o.type==="guest"?"Convidado":statusText(o.status)}</span><span class="status ${o.status}">${statusText(o.status)}</span></div></button>`;
+    return canDelete?`<div class="admin-order-row">${row}<button class="mini-btn delete" data-delete-order="${esc(o.id)}" aria-label="Eliminar pedido ${o.id}">🗑️</button></div>`:row;
   }
   function adminOrders(){
     const map={"Pendente":"pending","Pago":"paid","Em dívida":"debt","Cancelado":"cancelled","Convidados":"guest"};
     let list=state.orders;
     if(orderFilter==="Convidados")list=list.filter(o=>o.type==="guest");else if(orderFilter!=="Todos")list=list.filter(o=>o.status===map[orderFilter]);
+    if(adminOrderDate)list=list.filter(o=>localDateKey(o.date)===adminOrderDate);
     return `<div class="head" style="margin-top:2px"><div><h2>Gestão de pedidos</h2><p>Registados e sem cadastro.</p></div><button class="secondary receipt-open" id="openDailyReceipt">🧾 Recibo diário</button></div>
+      <div class="order-filter-tools"><div class="form-row"><label for="adminOrderDate">FILTRAR POR DIA</label><input id="adminOrderDate" type="date" value="${esc(adminOrderDate)}"></div><button class="secondary" id="clearAdminOrderDate" ${adminOrderDate?"":"disabled"}>Todos os dias</button></div>
       <div class="filters" aria-label="Filtrar pedidos">${["Todos","Pendente","Pago","Em dívida","Convidados","Cancelado"].map(f=>`<button class="chip ${f===orderFilter?"active":""}" data-order-filter="${f}" aria-pressed="${f===orderFilter}">${f}</button>`).join("")}</div>
-      <div class="card orders">${list.length?list.map(adminOrderRow).join(""):empty("🥖","Não há pedidos com este filtro.")}</div>`;
+      <div class="order-filter-result" aria-live="polite">${list.length} ${list.length===1?"pedido encontrado":"pedidos encontrados"}</div><div class="card orders">${list.length?list.map(o=>adminOrderRow(o,true)).join(""):empty("🥖","Não há pedidos com este filtro.")}</div>`;
   }
 
   function receiptOrders(dateKey){return state.orders.filter(o=>localDateKey(o.date)===dateKey&&o.status!=="cancelled")}
@@ -609,6 +613,11 @@
       <div class="form-row"><label for="orderStatus">ESTADO</label><select id="orderStatus"><option value="pending" ${o.status==="pending"?"selected":""}>Pendente</option><option value="paid" ${o.status==="paid"?"selected":""}>Pago</option><option value="debt" ${o.status==="debt"?"selected":""}>Em dívida</option><option value="cancelled" ${o.status==="cancelled"?"selected":""}>Cancelado</option></select></div>
       <div class="sheet-actions"><button class="secondary" data-close>Cancelar</button><button class="primary" id="saveOrderStatus" data-id="${o.id}">Guardar pedido e preços</button></div>`);
   }
+  function deleteOrderConfirmModal(id){
+    const o=state.orders.find(x=>x.id===Number(id));if(!o)return;
+    const owner=orderOwner(o);
+    openModal(`<div class="confirm-card danger"><div class="feedback-emoji">🗑️</div><div class="eyebrow">ELIMINAR PEDIDO</div><h3>Apagar o pedido #${o.id}?</h3><p>${esc(owner.name)} • Esta ação remove o pedido e as contribuições ligadas a ele. Não pode ser desfeita.</p><div class="sheet-actions"><button class="secondary" data-close>Cancelar</button><button class="primary orange" id="confirmDeleteOrder" data-id="${o.id}">ELIMINAR PEDIDO</button></div></div>`);
+  }
   function productModal(id=null){
     const p=id?product(id):{name:"",icon:"🍞",price:0,category:"Outros",active:true,fridayOnly:false};
     openModal(`<div class="head" style="margin-top:0"><div><h3>${id?"Editar produto":"Novo produto"}</h3><p>Dados do cardápio.</p></div><span style="font-size:34px">${esc(p.icon)}</span></div>
@@ -672,6 +681,7 @@
     const ad=e.target.closest("[data-admin-section]");if(ad){adminSection=ad.dataset.adminSection;if(adminSection==="users")await loadAdminPinStates();await hydrateAdminOperational();renderWithFocus(`[data-admin-section="${adminSection}"]`);return}
     const cat=e.target.closest("[data-category]");if(cat){category=cat.dataset.category;renderWithFocus(`[data-category="${category}"]`);return}
     const of=e.target.closest("[data-order-filter]");if(of){orderFilter=of.dataset.orderFilter;renderWithFocus(`[data-order-filter="${orderFilter}"]`);return}
+    if(e.target.id==="clearAdminOrderDate"){adminOrderDate="";renderWithFocus("#adminOrderDate");return}
     const customToggle=e.target.closest("[data-toggle-custom]");if(customToggle){const mode=customToggle.dataset.toggleCustom;customOpen[mode]=!customOpen[mode];renderWithFocus(`[data-toggle-custom="${mode}"]`);return}
     if(e.target.closest("#openDailyReceipt")){dailyReceiptModal();return}
     if(e.target.id==="saveReceiptPrices"){const dateKey=e.target.dataset.date;if(saveReceiptPrices(dateKey)){dailyReceiptModal(dateKey);toast("Valores guardados. O recibo já está pronto para imprimir. 🧾")}return}
@@ -728,6 +738,13 @@
     }
 
     const ao=e.target.closest("[data-admin-order]");if(ao){editOrderModal(ao.dataset.adminOrder);return}
+    const removeOrder=e.target.closest("[data-delete-order]");if(removeOrder){deleteOrderConfirmModal(removeOrder.dataset.deleteOrder);return}
+    if(e.target.id==="confirmDeleteOrder"){
+      const o=state.orders.find(x=>x.id===Number(e.target.dataset.id));if(!o)return;
+      const deleted=await cloudRpc("admin_delete_order",{p_admin_pin:cloudCredentials.adminPin,p_sync_key:o.syncKey}).catch(()=>false);
+      if(!deleted){toast("Não deu para eliminar o pedido no servidor. Nada foi apagado.");return}
+      state.orders=state.orders.filter(row=>row.syncKey!==o.syncKey);state.donationPledges=state.donationPledges.filter(pledge=>pledge.orderSyncKey!==o.syncKey);save();closeModal();render();toast("Pedido eliminado em todos os dispositivos.");return;
+    }
     if(e.target.id==="saveOrderStatus"){
       const o=state.orders.find(x=>x.id===Number(e.target.dataset.id));if(!o)return;
       const previousStatus=o.status,inputs=$$('[data-order-price]'),status=$("#orderStatus").value,unpriced=inputs.find(input=>(Number(input.value)||0)<=0);if(status==="paid"&&unpriced){unpriced.focus();toast("Define todos os preços antes de marcar como pago, boss.");return}
@@ -833,6 +850,7 @@
   document.addEventListener("change",e=>{
     if(e.target.id==="loginUser"){refreshLoginPinFields();return}
     if(e.target.id==="dailyReceiptDate"){dailyReceiptModal(e.target.value||localDateKey());return}
+    if(e.target.id==="adminOrderDate"){adminOrderDate=e.target.value;renderWithFocus("#adminOrderDate");return}
     if(e.target.matches("[data-product-option]")){const mode=e.target.dataset.cartMode,store=choiceStore(mode),id=e.target.dataset.productOption,key=e.target.dataset.optionKey;if(!store[id])store[id]={};store[id][key]=e.target.value;renderWithFocus(`[data-product-option="${id}"][data-option-key="${key}"][data-cart-mode="${mode}"]`)}
   });
   $("#modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
@@ -850,7 +868,7 @@
   setInterval(refreshOperationalState,20000);
   let lastFridayMode=isFridayMode();
   setInterval(()=>{const current=isFridayMode();if(current!==lastFridayMode){lastFridayMode=current;category="Todos";cart={};guestCart={};cartChoices={};guestCartChoices={};render();toast(current?"Modo Sexta-feira ativado! 🎉":"Modo Sexta-feira encerrado.")}},60000);
-  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=47").catch(()=>{});}
+  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=48").catch(()=>{});}
   render();
   hydratePublicBootstrap().then(ok=>{if(ok&&!state.session.mode)render()});
 })();
