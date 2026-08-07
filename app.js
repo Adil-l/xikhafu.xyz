@@ -1,6 +1,7 @@
 
 (() => {
   const KEY = "paoCadaDiaUnifiedV3";
+  const CACHE_RESET_VERSION = "20260807-clean-slate-1";
   const SESSION_KEY = `${KEY}:session`;
   const CLOUD_SESSION_KEY = `${KEY}:cloudSession`;
   const DEVICE_KEY = `${KEY}:deviceId`;
@@ -76,10 +77,24 @@
     session:{mode:null,userId:null}
   };
 
+  function clearClientCache(){
+    try{
+      const resetKey=`${KEY}:cacheReset`;
+      if(localStorage.getItem(resetKey)!==CACHE_RESET_VERSION){
+        Object.keys(localStorage).filter(key=>key===KEY||key.startsWith(`${KEY}:`)).forEach(key=>localStorage.removeItem(key));
+        localStorage.setItem(resetKey,CACHE_RESET_VERSION);
+      }
+      Object.keys(sessionStorage).filter(key=>key===KEY||key.startsWith(`${KEY}:`)).forEach(key=>sessionStorage.removeItem(key));
+    }catch{}
+    if("caches" in window)void caches.keys().then(keys=>Promise.all(keys.map(key=>caches.delete(key)))).catch(()=>{});
+  }
+  clearClientCache();
+
   let state = load();
   state.session = loadSession(state.session);
   save();
   let cloudCredentials = loadCloudCredentials();
+  if(state.session.mode==="user"||state.session.mode==="admin"){state.session={mode:null,userId:null};save()}
   const cloudPinStates = new Map();
   const deviceId = loadDeviceId();
   ensureOperationalKeys();
@@ -155,8 +170,8 @@
   }
   function load(){try{return cleanRemovedProducts(JSON.parse(localStorage.getItem(KEY))||structuredClone(seed))}catch{return cleanRemovedProducts(structuredClone(seed))}}
   function loadSession(fallback={mode:null,userId:null}){try{return JSON.parse(sessionStorage.getItem(SESSION_KEY))||fallback||{mode:null,userId:null}}catch{return fallback||{mode:null,userId:null}}}
-  function loadCloudCredentials(){try{return JSON.parse(sessionStorage.getItem(CLOUD_SESSION_KEY))||{}}catch{return {}}}
-  function storeCloudCredentials(value){cloudCredentials=value||{};sessionStorage.setItem(CLOUD_SESSION_KEY,JSON.stringify(cloudCredentials))}
+  function loadCloudCredentials(){sessionStorage.removeItem(CLOUD_SESSION_KEY);return {}}
+  function storeCloudCredentials(value){cloudCredentials=value||{};sessionStorage.removeItem(CLOUD_SESSION_KEY)}
   function loadDeviceId(){let id=localStorage.getItem(DEVICE_KEY);if(!id){id=crypto.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}`;localStorage.setItem(DEVICE_KEY,id)}return id}
   function save(){
     const sharedState={...state,session:{mode:null,userId:null}};
@@ -205,6 +220,7 @@
   async function submitGuestOperational(order){try{const id=await cloudRpc("submit_guest_order",{payload:{syncKey:order.syncKey,guestName:order.guestName,guestPhone:order.guestPhone,date:order.date,items:order.items||[],customRequest:order.customRequest||"",needsContact:Boolean(order.needsContact)}});if(!id)return false;order.id=Number(id);order.updatedAt=new Date().toISOString();order.pendingSync=false;save();return true}catch{return false}}
   async function submitUserOperational(order){try{const result=await cloudRpc("submit_user_order",{p_user_id:Number(order.userId),p_pin:cloudCredentials.userPin,payload:{syncKey:order.syncKey,date:order.date,items:order.items||[],customRequest:order.customRequest||"",needsContact:Boolean(order.needsContact)}});if(!result?.ok)return result||false;order.id=Number(result.id);order.status=result.status||order.status;order.pendingSync=false;order.updatedAt=new Date().toISOString();save();return result}catch{return false}}
   async function flushPendingGuestOrders(){for(const order of state.orders.filter(o=>o.type==="guest"&&o.pendingSync))await submitGuestOperational(order)}
+  async function submitUserDonation(pledge){try{return await cloudRpc("submit_user_donation",{p_user_id:Number(pledge.userId),p_pin:cloudCredentials.userPin,payload:operationalDonationPayload(pledge)})}catch{return {ok:false,reason:"offline"}}}
   async function userSessionStatus(id,pin){try{return await cloudRpc("user_session_status",{p_user_id:Number(id),p_pin:pin})}catch{return null}}
   async function syncGuestDonationOperational(pledge){try{return await cloudRpc("sync_guest_donation",{payload:{syncKey:pledge.syncKey,orderSyncKey:pledge.orderSyncKey||null,donorName:pledge.name||"Convidado",amount:Number(pledge.amount||0),date:pledge.date}})}catch{return false}}
   function toast(text){const e=$("#toast");e.textContent="";requestAnimationFrame(()=>{e.textContent=text;e.classList.add("show")});clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),3600)}
@@ -746,7 +762,12 @@
       const resetOk=await cloudRpc("reset_user_pin",{p_admin_pin:cloudCredentials.adminPin,p_user_id:u.id}).catch(()=>false);if(!resetOk){toast("Não deu para reiniciar o PIN no servidor.");return}u.pin="";u.pinConfigured=false;delete u.pinSetAt;cloudPinStates.set(Number(u.id),"unset");save();closeModal();render();toast(`PIN de ${u.name} reiniciado em todos os dispositivos.`);return;
     }
     const approvePin=e.target.closest("[data-approve-pin]");if(approvePin){const uid=Number(approvePin.dataset.approvePin),approved=await cloudRpc("approve_user_pin",{p_admin_pin:cloudCredentials.adminPin,p_user_id:uid}).catch(()=>false);if(!approved){toast("Não deu para aprovar este PIN.");return}cloudPinStates.set(uid,"active");render();toast(`PIN de ${user(uid)?.name||"utilizador"} aprovado. Já pode entrar! 🔐`);return}
-    if(e.target.id==="toggleGuest"){state.settings.guestOrdering=!state.settings.guestOrdering;touchSettings();save();void syncAdminOperational().catch(()=>{});render();toast(state.settings.guestOrdering?"Pedidos sem cadastro ativados.":"Pedidos sem cadastro desativados.");return}
+    if(e.target.id==="toggleGuest"){
+      const enabled=!state.settings.guestOrdering;
+      const saved=await cloudRpc("admin_set_guest_ordering",{p_admin_pin:cloudCredentials.adminPin,p_enabled:enabled}).catch(()=>false);
+      if(!saved){toast("Não deu para atualizar os pedidos sem cadastro.");return}
+      state.settings.guestOrdering=enabled;touchSettings();save();render();toast(enabled?"Pedidos sem cadastro ativados.":"Pedidos sem cadastro desativados.");return
+    }
     const policy=e.target.closest("[data-balance-policy]");if(policy){state.settings.balancePolicy=policy.dataset.balancePolicy;touchSettings();save();void syncAdminOperational().catch(()=>{});render();toast(state.settings.balancePolicy==="block"?"Sem mola, o pedido fica bloqueado. 🛑":"Saldo negativo permitido. Entrou no território das dívidas. 😅");return}
     if(e.target.id==="saveDonationSettings"){
       const day=Math.min(28,Math.max(1,Number($("#donationDay").value)||5)),goal=$("#donationGoal").value.trim();
@@ -766,7 +787,10 @@
     if(e.target.id==="ackDonation"){
       const amount=Number($("#donationRange")?.value||0),u=activeUser(),available=userAvailable(u.id);if(amount<=0)return;
       if(amount>available){toast("Eish, boss! Não há mola suficiente para essa txova.");return}
-      const pledge={id:Date.now(),userId:u.id,name:u.name,amount,date:new Date().toISOString()};pledge.syncKey=stableSyncKey("donation",pledge);state.donationPledges.unshift(pledge);save();await syncUserOperational(u.id,cloudCredentials.userPin);closeModal();render();toast(`${fmt(amount)} MT já txovaram o sonho! Ficaram ${fmt(userAvailable(u.id))} MT. 🥖💛`);return}
+      const pledge={id:Date.now(),userId:u.id,name:u.name,amount,date:new Date().toISOString()};pledge.syncKey=stableSyncKey("donation",pledge);
+      const cloudResult=await submitUserDonation(pledge);
+      if(!cloudResult?.ok&&cloudResult?.reason!=="offline"){toast("A contribuição não entrou: o saldo foi atualizado noutro dispositivo.");return}
+      state.donationPledges.unshift(pledge);save();closeModal();render();toast(cloudResult?.ok?`${fmt(amount)} MT já txovaram o sonho! Ficaram ${fmt(userAvailable(u.id))} MT. 🥖💛`:"Contribuição guardada localmente; será sincronizada quando voltar a ligação.");return}
     if(e.target.id==="skipGuestDonation"){const order=state.orders.find(o=>o.id===Number(e.target.dataset.order));if(order)guestOrderSuccess(order);return}
     if(e.target.id==="confirmGuestDonation"){
       const amount=Number($("#guestDonationRange")?.value||0),order=state.orders.find(o=>o.id===Number(e.target.dataset.order));if(!order||amount<=0)return;
@@ -826,7 +850,7 @@
   setInterval(refreshOperationalState,20000);
   let lastFridayMode=isFridayMode();
   setInterval(()=>{const current=isFridayMode();if(current!==lastFridayMode){lastFridayMode=current;category="Todos";cart={};guestCart={};cartChoices={};guestCartChoices={};render();toast(current?"Modo Sexta-feira ativado! 🎉":"Modo Sexta-feira encerrado.")}},60000);
-  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=45").catch(()=>{});}
+  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=47").catch(()=>{});}
   render();
   hydratePublicBootstrap().then(ok=>{if(ok&&!state.session.mode)render()});
 })();

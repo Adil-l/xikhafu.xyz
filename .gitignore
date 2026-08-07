@@ -25,6 +25,7 @@ render.experimental.xml
 
 # Vercel local project metadata
 .vercel/
+node_modules/
 
 # Keystore files
 *.jks

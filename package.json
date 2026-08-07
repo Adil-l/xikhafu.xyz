@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "test:e2e:smoke": "node tests/smoke.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  }
+}

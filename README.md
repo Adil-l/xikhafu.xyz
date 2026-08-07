@@ -30,4 +30,12 @@ O navegador mantém uma cópia rápida dos dados para a interface, mas o Supabas
 
 ## Testes
 
-Instale `playwright` no ambiente de desenvolvimento e execute o servidor local antes do fluxo E2E. A URL e o binário do navegador podem ser definidos com `BASE_URL` e `CHROME_PATH`.
+Instale as dependências e execute o smoke E2E não destrutivo com o servidor local:
+
+```bash
+npm install
+python3 -m http.server 8090
+npm run test:e2e:smoke
+```
+
+A URL e o binário do navegador podem ser definidos com `BASE_URL` e `CHROME_PATH`. O fluxo E2E completo pode alterar dados remotos; execute-o apenas contra um projeto de teste.
