@@ -564,8 +564,8 @@
     openModal(`<div class="receipt-modal"><div class="head" style="margin-top:0"><div><h3>Recibo diário</h3><p>Pedidos e gastos de cada pessoa.</p></div><span style="font-size:36px">🧾</span></div><div class="form-row"><label for="dailyReceiptDate">DIA DO RECIBO</label><input id="dailyReceiptDate" type="date" value="${dateKey}"></div>${receiptPricingEditor(dateKey)}${dailyReceiptBody(dateKey)}<div class="sheet-actions"><button class="secondary" data-close>Fechar</button><button class="primary orange" id="printDailyReceipt" data-date="${dateKey}" ${missing.length?"disabled":""}>${missing.length?"PREENCHE OS VALORES PRIMEIRO":"IMPRIMIR / GUARDAR PDF"}</button></div></div>`);
   }
   function printDailyReceipt(dateKey){
-    const layer=document.createElement("div");layer.id="printReceiptLayer";layer.innerHTML=dailyReceiptBody(dateKey);document.body.appendChild(layer);document.body.classList.add("printing-receipt");
-    let cleaned=false;const cleanup=()=>{if(cleaned)return;cleaned=true;document.body.classList.remove("printing-receipt");layer.remove();window.removeEventListener("afterprint",cleanup)};
+    const layer=document.createElement("div"),originalTitle=document.title;layer.id="printReceiptLayer";layer.innerHTML=dailyReceiptBody(dateKey);document.body.appendChild(layer);document.body.classList.add("printing-receipt");document.title=`Recibo diário — ${dateKey}`;
+    let cleaned=false;const cleanup=()=>{if(cleaned)return;cleaned=true;document.body.classList.remove("printing-receipt");layer.remove();document.title=originalTitle;window.removeEventListener("afterprint",cleanup)};
     window.addEventListener("afterprint",cleanup,{once:true});requestAnimationFrame(()=>window.print());setTimeout(cleanup,60000);
   }
   function adminProducts(){
@@ -889,7 +889,7 @@
   setInterval(refreshOperationalState,20000);
   let lastFridayMode=isFridayMode();
   setInterval(()=>{const current=isFridayMode();if(current!==lastFridayMode){lastFridayMode=current;category="Todos";cart={};guestCart={};cartChoices={};guestCartChoices={};render();toast(current?"Modo Sexta-feira ativado! 🎉":"Modo Sexta-feira encerrado.")}},60000);
-  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=50").catch(()=>{});}
+  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=51").catch(()=>{});}
   render();
   hydratePublicBootstrap().then(ok=>{if(ok&&!state.session.mode)render()});
 })();
