@@ -97,3 +97,14 @@ button,input,select,textarea{font:inherit}button{touch-action:manipulation}butto
 @media(min-width:760px){.app-shell.admin-shell{max-width:900px}.admin-shell .bottom-nav{width:min(900px,100%)}.admin-shell .app-content{padding-left:24px;padding-right:24px}.admin-shell .admin-kpis{grid-template-columns:repeat(4,1fr)}.admin-shell .hero{padding:28px}.admin-shell .hero h2{max-width:520px}.admin-shell .manage-row{grid-template-columns:48px minmax(0,1fr) auto}.admin-shell .receipt-paper{padding:20px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 .order-edit-total output{font-size:18px;color:var(--green-dark);font-weight:950}
+#printReceiptLayer{display:none}
+@media print{
+  @page{margin:14mm}
+  body.printing-receipt{background:#fff}
+  body.printing-receipt>*:not(#printReceiptLayer){display:none!important}
+  body.printing-receipt>#printReceiptLayer{display:block!important;position:static!important;width:auto!important;height:auto!important;overflow:visible!important;background:#fff;color:#38251b}
+  body.printing-receipt>#printReceiptLayer .receipt-paper{max-width:760px;margin:0 auto;padding:0;border:0;border-radius:0;box-shadow:none;background:#fff}
+  body.printing-receipt>#printReceiptLayer .receipt-brand{border-bottom-color:#38251b}
+  body.printing-receipt>#printReceiptLayer .receipt-person{break-inside:avoid}
+  body.printing-receipt>#printReceiptLayer .receipt-quantity-summary{break-inside:avoid}
+}
