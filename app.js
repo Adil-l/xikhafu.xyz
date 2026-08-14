@@ -34,13 +34,13 @@
     {id:14,name:"Wesley Ussene",avatar:"⚡",pin:"",pinConfigured:false,monthlyBalance:0,active:true}
   ];
   const MENU_PRODUCTS = [
-    {id:1,name:"Bread",icon:"🥖",price:16,category:"Breads",active:true,options:[]},
+    {id:1,name:"Bread",icon:"🥖",price:16,category:"Pães",active:true,options:[]},
     {id:2,name:"Badjia",icon:"🥟",price:3,category:"Salgados",active:true,options:[{key:"piri",label:"Piri-piri",choices:[{label:"Sem piri-piri"},{label:"Com piri-piri"}]}]},
     {id:5,name:"Chamuça",icon:"🔺",price:12,category:"Salgados",active:true,options:[{key:"piri",label:"Piri-piri",choices:[{label:"Sem piri-piri"},{label:"Com piri-piri"}]}]},
     {id:6,name:"Rissol",icon:"🥐",price:12,category:"Salgados",active:true,options:[{key:"piri",label:"Piri-piri",choices:[{label:"Sem piri-piri"},{label:"Com piri-piri"}]}]},
     {id:12,name:"Bolos",icon:"🍰",price:0,category:"Doces",active:true,contactForFlavor:true},
   ];
-  const monthName = new Intl.DateTimeFormat("pt-PT",{month:"long",year:"numeric"}).format(new Date());
+  const monthName = new Intl.DateTimeFormat("pt-PT",{month:"long",year:"numeric",timeZone:"Africa/Maputo"}).format(new Date());
   const seed = {
     settings:{balancePolicy:"block"},
     users:USER_ROSTER.map(u=>({...u})),
@@ -52,15 +52,17 @@
   };
 
   function clearClientCache(){
+    let shouldClearCaches=false;
     try{
       const resetKey=`${KEY}:cacheReset`;
       if(localStorage.getItem(resetKey)!==CACHE_RESET_VERSION){
+        shouldClearCaches=true;
         Object.keys(localStorage).filter(key=>key===KEY||key.startsWith(`${KEY}:`)).forEach(key=>localStorage.removeItem(key));
         localStorage.setItem(resetKey,CACHE_RESET_VERSION);
       }
       Object.keys(sessionStorage).filter(key=>key===KEY||key.startsWith(`${KEY}:`)).forEach(key=>sessionStorage.removeItem(key));
     }catch{}
-    if("caches" in window)void caches.keys().then(keys=>Promise.all(keys.map(key=>caches.delete(key)))).catch(()=>{});
+    if(shouldClearCaches&&"caches" in window)void caches.keys().then(keys=>Promise.all(keys.map(key=>caches.delete(key)))).catch(()=>{});
   }
   clearClientCache();
 
@@ -96,14 +98,14 @@
   const esc = value => String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[char]));
   const byName = (a,b) => a.name.localeCompare(b.name,"pt",{sensitivity:"base"});
   const canOrderProduct = p => Boolean(p?.active);
-  const isThisMonth = d => {const x=new Date(d),n=new Date();return x.getMonth()===n.getMonth()&&x.getFullYear()===n.getFullYear()};
-  const today = d => new Date(d).toDateString() === new Date().toDateString();
+  const isThisMonth = d => localDateKey(d).slice(0,7)===localDateKey().slice(0,7);
+  const today = d => localDateKey(d)===localDateKey();
   const product = id => state.products.find(p=>p.id===Number(id));
   const user = id => state.users.find(u=>u.id===Number(id));
   const itemPrice = i => i.unitPrice!=null?Number(i.unitPrice||0):Number(product(i.productId)?.price||0);
   const orderTotal = o => (o.items||[]).reduce((s,i)=>s+itemPrice(i)*i.qty,0)+Number(o.customPrice||0)+Number(o.guestDonation||0);
   const orderTotalLabel = o => {const total=orderTotal(o);return o.needsContact?(total>0?`${fmt(total)} MT + confirmar`:"A confirmar"):`${fmt(total)} MT`};
-  const localDateKey = (value=new Date()) => {const d=value instanceof Date?value:new Date(value);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`};
+  const localDateKey = (value=new Date()) => new Intl.DateTimeFormat("en-CA",{timeZone:"Africa/Maputo",year:"numeric",month:"2-digit",day:"2-digit"}).format(value instanceof Date?value:new Date(value));
   const activeUser = () => user(state.session.userId);
 
   function cleanRemovedProducts(data){
@@ -139,7 +141,7 @@
     if(!cloudPinUpdated){data.users=(data.users||[]).map(u=>({...u,pin:"",pinConfigured:false}));data.session={mode:null,userId:null};data.settings.cloudPinVersion=1}
     const productIds=new Set(),productNames=new Set();
     data.products=(data.products||[]).filter(p=>{const id=Number(p.id),name=String(p.name||"").trim().toLocaleLowerCase("pt");if(REMOVED_PRODUCT_IDS.has(id)||productIds.has(id)||productNames.has(name))return false;productIds.add(id);productNames.add(name);return true});
-    data.products=data.products.map(p=>Number(p.id)===1?{...p,name:"Bread",category:"Breads",price:16,options:[]}:Number(p.id)===2?{...p,name:"Badjia",price:3}:Number(p.id)===5?{...p,name:"Chamuça",price:12,options:(p.options||[]).filter(group=>group.key!=="preco")}:Number(p.id)===6?{...p,name:"Rissol",price:12}:p);
+    data.products=data.products.map(p=>Number(p.id)===1?{...p,name:"Bread",category:"Pães",price:16,options:[]}:Number(p.id)===2?{...p,name:"Badjia",price:3}:Number(p.id)===5?{...p,name:"Chamuça",price:12,options:(p.options||[]).filter(group=>group.key!=="preco")}:Number(p.id)===6?{...p,name:"Rissol",price:12}:p);
     data.orders=(data.orders||[]).map(o=>({...o,items:(o.items||[]).filter(i=>!REMOVED_PRODUCT_IDS.has(Number(i.productId)))}));
     data.donationPledges=data.donationPledges||[];
     return data;
@@ -154,7 +156,7 @@
     localStorage.setItem(KEY,JSON.stringify(sharedState));
     sessionStorage.setItem(SESSION_KEY,JSON.stringify(state.session||{mode:null,userId:null}));
   }
-  function reset(){localStorage.removeItem(KEY);sessionStorage.removeItem(SESSION_KEY);sessionStorage.removeItem(CLOUD_SESSION_KEY);cloudCredentials={};state=cleanRemovedProducts(structuredClone(seed));page="home";adminSection="dashboard";cart={};cartChoices={};adminCart={};adminCartChoices={};customRequest="";adminCustomRequest="";orderSchedule="today";save();render()}
+  function reset(){localStorage.removeItem(KEY);sessionStorage.removeItem(SESSION_KEY);sessionStorage.removeItem(CLOUD_SESSION_KEY);cloudCredentials={};state=cleanRemovedProducts(structuredClone(seed));page="home";adminSection="dashboard";cart={};cartChoices={};adminCart={};adminCartChoices={};customRequest="";adminCustomRequest="";orderSchedule="today";save();render();focusMain()}
   async function cloudRpc(name,body){const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);try{const response=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{method:"POST",headers:{apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${SUPABASE_ANON_KEY}`,"Content-Type":"application/json"},body:JSON.stringify(body),signal:controller.signal});if(!response.ok)throw new Error(`Supabase ${name}: ${response.status}`);const text=await response.text();return text?JSON.parse(text):null}finally{clearTimeout(timeout)}}
   async function getCloudPinStatus(id){try{const status=await cloudRpc("user_pin_status",{p_user_id:Number(id)});cloudPinStates.set(Number(id),status);return status}catch{cloudPinStates.set(Number(id),"offline");return "offline"}}
   async function loadAdminPinStates(){if(!cloudCredentials.adminPin)return;try{const rows=await cloudRpc("admin_pin_states",{p_admin_pin:cloudCredentials.adminPin});(rows||[]).forEach(row=>cloudPinStates.set(Number(row.user_id),row.locked_until&&new Date(row.locked_until)>new Date()?"locked":row.pin_status));return rows||[]}catch{return []}}
@@ -170,7 +172,7 @@
   function operationalDonationPayload(p){return {sync_key:stableSyncKey("donation",p),order_sync_key:p.orderSyncKey||null,user_id:p.userId||null,donor_name:p.name||"Convidado",amount:Number(p.amount||0),created_at:p.date,updated_at:p.updatedAt||p.date}}
   function mergeCloudSettings(settings){if(!settings)return;Object.assign(state.settings,{balancePolicy:"block",cloudOperationalUpdatedAt:settings.updatedAt})}
   function mergeCloudUser(cloudUser){if(!cloudUser)return;const local=user(cloudUser.id),remoteTime=cloudUser.updatedAt?new Date(cloudUser.updatedAt):null;if(local?.updatedAt&&remoteTime&&remoteTime<new Date(local.updatedAt))return;const updates={name:cloudUser.name,avatar:cloudUser.avatar,active:cloudUser.active};if(cloudUser.monthlyBalance!=null)updates.monthlyBalance=Number(cloudUser.monthlyBalance||0);if("balanceResetAt" in cloudUser)updates.balanceResetAt=cloudUser.balanceResetAt;if(cloudUser.updatedAt)updates.cloudUpdatedAt=cloudUser.updatedAt;if(local)Object.assign(local,updates);else state.users.push({...cloudUser,...updates,pin:"",pinConfigured:true,monthlyBalance:Number(cloudUser.monthlyBalance||0)})}
-  function mergeCloudProduct(cloudProduct){if(!cloudProduct||REMOVED_PRODUCT_IDS.has(Number(cloudProduct.id)))return;const normalized=Number(cloudProduct.id)===1?{...cloudProduct,name:"Bread",category:"Breads",price:16,options:[]}:Number(cloudProduct.id)===2?{...cloudProduct,name:"Badjia",price:3}:Number(cloudProduct.id)===5?{...cloudProduct,name:"Chamuça",price:12,options:(cloudProduct.options||[]).filter(group=>group.key!=="preco")}:Number(cloudProduct.id)===6?{...cloudProduct,name:"Rissol",price:12}:{...cloudProduct};const local=product(normalized.id);if(local)Object.assign(local,normalized);else state.products.push({...normalized,options:normalized.options||[]})}
+  function mergeCloudProduct(cloudProduct){if(!cloudProduct||REMOVED_PRODUCT_IDS.has(Number(cloudProduct.id)))return;const normalized=Number(cloudProduct.id)===1?{...cloudProduct,name:"Bread",category:"Pães",price:16,options:[]}:Number(cloudProduct.id)===2?{...cloudProduct,name:"Badjia",price:3}:Number(cloudProduct.id)===5?{...cloudProduct,name:"Chamuça",price:12,options:(cloudProduct.options||[]).filter(group=>group.key!=="preco")}:Number(cloudProduct.id)===6?{...cloudProduct,name:"Rissol",price:12}:{...cloudProduct};const local=product(normalized.id);if(local)Object.assign(local,normalized);else state.products.push({...normalized,options:normalized.options||[]})}
   function mergeOperationalRows(localRows,cloudRows){const rows=new Map();(localRows||[]).forEach(row=>rows.set(row.syncKey,row));(cloudRows||[]).forEach(remote=>{const local=rows.get(remote.syncKey);if(!local||new Date(remote.updatedAt||remote.date||0)>=new Date(local.updatedAt||local.date||0))rows.set(remote.syncKey,remote)});return [...rows.values()]}
   function touchSettings(){state.settings.updatedAt=new Date().toISOString()}
   async function syncUserOperational(id,pin){
@@ -199,10 +201,11 @@
   async function submitAdminRecharge(recharge){try{const result=await cloudRpc("admin_add_recharge",{p_admin_pin:cloudCredentials.adminPin,payload:{syncKey:recharge.syncKey,userId:Number(recharge.userId),amount:Number(recharge.amount),note:recharge.note||"Recarga"}});if(!result?.ok)return result||false;recharge.id=Number(result.id)||recharge.id;recharge.date=result.date||recharge.date;recharge.updatedAt=new Date().toISOString();recharge.pendingSync=false;save();return result}catch{return false}}
   async function userSessionStatus(id,pin){try{return await cloudRpc("user_session_status",{p_user_id:Number(id),p_pin:pin})}catch{return null}}
   function toast(text){const e=$("#toast");e.textContent="";requestAnimationFrame(()=>{e.textContent=text;e.classList.add("show")});clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),3600)}
+  function focusMain(){requestAnimationFrame(()=>$("#main")?.focus())}
   function openModal(html,onClose=null){const modal=$("#modal"),sheet=$(".sheet"),wasOpen=modal.classList.contains("open");if(!wasOpen)modalOpener=document.activeElement;modalCloseAction=onClose;$("#modalContent").innerHTML=`<div class="modal-brand"><span aria-hidden="true">🍞</span><strong>O Pão de Cada Dia</strong><button class="modal-close" data-close aria-label="Fechar janela"><span aria-hidden="true">×</span></button></div><div class="modal-body">${html}</div>`;const heading=$("#modalContent h3");if(heading){heading.id="modalTitle";heading.tabIndex=-1;sheet.setAttribute("aria-labelledby","modalTitle");sheet.removeAttribute("aria-label")}else{sheet.removeAttribute("aria-labelledby");sheet.setAttribute("aria-label","Janela de diálogo")}modal.classList.add("open");modal.setAttribute("aria-hidden","false");app.inert=true;document.body.classList.add("modal-open");requestAnimationFrame(()=>{(heading||sheet)?.focus()})}
   function closeModal(){const modal=$("#modal");if(!modal.classList.contains("open"))return;const fallback=modalCloseAction;modalCloseAction=null;modal.classList.remove("open");modal.setAttribute("aria-hidden","true");app.inert=false;document.body.classList.remove("modal-open");const restore=modalOpener;modalOpener=null;if(fallback){requestAnimationFrame(fallback);return}if(restore?.isConnected)requestAnimationFrame(()=>restore.focus())}
-  function logout(){closeModal();state.session={mode:null,userId:null};storeCloudCredentials({});save();page="home";adminSection="dashboard";cart={};cartChoices={};adminCart={};adminCartChoices={};customRequest="";adminCustomRequest="";orderSchedule="today";customOpen={user:false};render()}
-  function statusText(s){return s==="paid"?"Pago":s==="debt"?"Em dívida":s==="cancelled"?"Cancelado":"Pendente"}
+  function logout(){closeModal();state.session={mode:null,userId:null};storeCloudCredentials({});save();page="home";adminSection="dashboard";cart={};cartChoices={};adminCart={};adminCartChoices={};customRequest="";adminCustomRequest="";orderSchedule="today";customOpen={user:false};render();focusMain()}
+  function statusText(s){return s==="paid"?"Pago":s==="debt"?"Dívida antiga":s==="cancelled"?"Cancelado":"Aguardando confirmação"}
   function empty(emoji,text){return `<div class="empty"><div class="emoji">${emoji}</div><p>${text}</p></div>`}
   function afterBalanceReset(id,date){const reset=user(id)?.balanceResetAt;return !reset||new Date(date)>=new Date(reset)}
   function userSpent(id){return state.orders.filter(o=>o.type==="user"&&o.userId===Number(id)&&isThisMonth(o.date)&&afterBalanceReset(id,o.date)&&o.status!=="cancelled").reduce((s,o)=>s+orderTotal(o),0)}
@@ -213,8 +216,8 @@
   function userItemQty(id,test){return userOrdersAll(id).reduce((sum,o)=>sum+o.items.reduce((total,item)=>{const p=product(item.productId);return total+(p&&test(p)?Number(item.qty):0)},0),0)}
   function userAllSpent(id){return userOrdersAll(id).reduce((sum,o)=>sum+orderTotal(o),0)}
   function balanceMessage(amount){
-    if(amount<0)return `Calma campeão... ainda tens ${fmt(Math.abs(amount))} MT por acertar.`;
-    if(amount===0)return "Saldo esgotado. O bread fica para o próximo mês.";
+    if(amount<0)return `O saldo está negativo em ${fmt(Math.abs(amount))} MT. Recarrega antes de fazer outro pedido.`;
+    if(amount===0)return "Saldo esgotado. Recarrega para fazer um pedido.";
     if(amount<=50)return `Restam apenas ${fmt(amount)} MT. Escolhe a badjia com sabedoria.`;
     if(amount<=100)return "A carteira está de dieta.";
     if(amount<=150)return "Calma, campeão. O teu saldo já está a pedir água.";
@@ -224,24 +227,23 @@
     if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
     const layer=document.createElement("div");layer.className="celebration-layer";layer.setAttribute("aria-hidden","true");layer.innerHTML=Array.from({length:14},(_,i)=>`<i style="--i:${i};--x:${(i*37)%100}%;--delay:${(i%5)*35}ms"></i>`).join("");document.body.appendChild(layer);setTimeout(()=>layer.remove(),1500);
   }
-  function celebrateOrder(){showConfetti();toast("Excelente escolha. O padeiro agradece. 🎉")}
+  function celebrateOrder(message="Pedido criado com sucesso. 🎉"){showConfetti();toast(message)}
   function balanceRuleModal(total,available){
     openModal(`<div class="balance-decision blocked"><div class="feedback-emoji">🛑</div><div class="eyebrow">MOLA INSUFICIENTE</div><h3>Pedido bloqueado, boss</h3><p>O food custa <strong>${fmt(total)} MT</strong> e tens <strong>${fmt(available)} MT</strong> disponíveis. Recarrega o saldo antes de fazer este pedido.</p><div class="sheet-actions"><button class="primary orange" data-close>ENTENDI, BOSS</button></div></div>`);
   }
-  function orderStatusFeedback(type,order){
-    const paid=type==="paid",amount=orderTotal(order);
-    if(paid)showConfetti();
-    openModal(`<div class="status-feedback ${type}"><div class="status-animation" aria-hidden="true">${paid?`<span>💰</span><b>➜</b><span>🥖</span>`:`<span>😂</span>`}</div><div class="eyebrow">${paid?"MAMBO FECHADO":"FICOU NA CONTA"}</div><h3>${paid?"Pagamento confirmado!":"Entrou nas dívidas"}</h3><p>${paid?"Missão cumprida. A tua consciência está leve.":`Calma campeão... ainda tens ${fmt(amount)} MT por acertar.`}</p><button class="primary ${paid?"":"orange"}" data-close>${paid?"ESTÁ NICE ✅":"VAMOS ACERTAR 😅"}</button></div>`);
+  function orderStatusFeedback(){
+    showConfetti();
+    openModal(`<div class="status-feedback paid"><div class="status-animation" aria-hidden="true"><span>💰</span><b>➜</b><span>🥖</span></div><div class="eyebrow">MAMBO FECHADO</div><h3>Pagamento confirmado!</h3><p>O pedido foi marcado como pago.</p><button class="primary" data-close>ESTÁ NICE ✅</button></div>`);
   }
   function resetPinConfirmModal(u){
     openModal(`<div class="confirm-card"><div class="feedback-emoji">🔐</div><div class="eyebrow">REINICIAR PIN</div><h3>Dar um novo começo a ${esc(u.name)}?</h3><p>No próximo acesso, esta pessoa terá de criar um PIN novo de 4 números.</p><div class="sheet-actions"><button class="secondary" data-close>DEIXAR COMO ESTÁ</button><button class="primary orange" id="confirmResetUserPin" data-id="${u.id}">REINICIAR PIN</button></div></div>`);
   }
   function resetSystemConfirmModal(){
-    openModal(`<div class="confirm-card danger"><div class="feedback-emoji">♻️</div><div class="eyebrow">LIMPAR ESTE APARELHO</div><h3>Apagar os dados locais?</h3><p>Os dados guardados neste navegador serão limpos. PINs e Hall partilhados no Supabase serão preservados.</p><div class="sheet-actions"><button class="secondary" data-close>CANCELAR</button><button class="primary orange" id="confirmSystemReset">LIMPAR APARELHO</button></div></div>`);
+    openModal(`<div class="confirm-card danger"><div class="feedback-emoji">♻️</div><div class="eyebrow">LIMPAR ESTE APARELHO</div><h3>Apagar os dados locais?</h3><p>Os dados guardados neste navegador serão limpos. Os PINs e os dados partilhados permanecem guardados.</p><div class="sheet-actions"><button class="secondary" data-close>CANCELAR</button><button class="primary orange" id="confirmSystemReset">LIMPAR APARELHO</button></div></div>`);
   }
   function orderOwner(o){return o.type==="guest" ? {name:o.guestName||"Convidado",avatar:"👤"} : user(o.userId)||{name:"Utilizador removido",avatar:"❔"}}
-  function orderDateLabel(value){const date=new Date(value),dateKey=localDateKey(date),todayKey=localDateKey(),tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);const tomorrowKey=localDateKey(tomorrow),time=new Intl.DateTimeFormat("pt-PT",{hour:"2-digit",minute:"2-digit"}).format(date);if(dateKey===todayKey)return `Hoje • ${time}`;if(dateKey===tomorrowKey)return `Amanhã • ${time}`;return `${new Intl.DateTimeFormat("pt-PT",{day:"2-digit",month:"2-digit",year:"numeric"}).format(date)} • ${time}`}
-  function scheduledOrderDate(){const date=new Date();date.setDate(date.getDate()+1);date.setHours(6,0,0,0);return date.toISOString()}
+  function orderDateLabel(value){const date=new Date(value),dateKey=localDateKey(date),todayKey=localDateKey(),tomorrowKey=localDateKey(scheduledOrderDate()),time=new Intl.DateTimeFormat("pt-PT",{hour:"2-digit",minute:"2-digit",timeZone:"Africa/Maputo"}).format(date);if(dateKey===todayKey)return `Hoje • ${time}`;if(dateKey===tomorrowKey)return `Amanhã • ${time}`;return `${new Intl.DateTimeFormat("pt-PT",{day:"2-digit",month:"2-digit",year:"numeric",timeZone:"Africa/Maputo"}).format(date)} • ${time}`}
+  function scheduledOrderDate(){const values=Object.fromEntries(new Intl.DateTimeFormat("en",{timeZone:"Africa/Maputo",year:"numeric",month:"numeric",day:"numeric"}).formatToParts(new Date()).filter(part=>part.type!=="literal").map(part=>[part.type,Number(part.value)]));return new Date(Date.UTC(values.year,values.month-1,values.day+1,4,0,0)).toISOString()}
   function itemSummary(o){const items=(o.items||[]).map(i=>{const choices=Object.values(i.choices||{}).join(", ");return `${esc(product(i.productId)?.icon||"❔")} ×${i.qty}${choices?` (${esc(choices)})`:""}`}).join("  ");const special=o.customRequest?`${items?"  • ":""}📝 ${esc(o.customRequest)}`:"";return `${items}${special}${o.guestDonation?`  • 🚗 ${fmt(o.guestDonation)} MT`:""}`}
   function copyText(text){
     if(navigator.clipboard?.writeText)return navigator.clipboard.writeText(text);
@@ -250,12 +252,12 @@
   function rankingModal(cloudRows=null){
     const active=state.users.filter(u=>u.active!==false);
     const remote=new Map();
-    if(cloudRows){cloudRows.filter(row=>row.status!=="cancelled").forEach(row=>{const id=Number(row.user_id),current=remote.get(id)||{spent:0,bread:0,badjia:0,drinks:0};current.spent+=Number(row.total||0);current.bread+=Number(row.bread_qty||0);current.badjia+=Number(row.badjia_qty||0);current.drinks+=Number(row.drink_qty||0);remote.set(id,current)})}
+    if(cloudRows){cloudRows.filter(row=>row.status!=="cancelled").forEach(row=>{const id=Number(row.user_id),current=remote.get(id)||{spent:0,bread:0,badjia:0,salgados:0};current.spent+=Number(row.total||0);current.bread+=Number(row.bread_qty||0);current.badjia+=Number(row.badjia_qty||0);current.salgados+=Number(row.salgados_qty||0);remote.set(id,current)})}
     const metric=(u,key,local)=>cloudRows?(remote.get(Number(u.id))?.[key]||0):local(u);
     const score=fn=>active.map(u=>({u,value:fn(u)})).sort((a,b)=>b.value-a.value||a.u.name.localeCompare(b.u.name))[0];
     const bread=u=>metric(u,"bread",person=>userItemQty(person.id,p=>p.id===1||p.name.toLowerCase().includes("bread")));
     const badjia=u=>metric(u,"badjia",person=>userItemQty(person.id,p=>p.id===2||p.name.toLowerCase().includes("badjia")));
-    const drinks=u=>metric(u,"drinks",person=>userItemQty(person.id,p=>["Refrescos","Sumos","Energéticos","Bebidas"].includes(p.category)));
+    const salgados=u=>metric(u,"salgados",person=>userItemQty(person.id,p=>p.id===5||p.id===6));
     const spent=u=>metric(u,"spent",person=>userAllSpent(person.id));
     const topThree=active.map(u=>({u,value:spent(u)})).filter(person=>person.value>0).sort((a,b)=>b.value-a.value||a.u.name.localeCompare(b.u.name)).slice(0,3);
     const podiumOrder=[topThree[1],topThree[0],topThree[2]];
@@ -263,12 +265,12 @@
     const leaders=[
       ["🥖","Maior consumidor de Bread",score(bread),"breads"],
       ["🥟","Rei das Badjias",score(badjia),"badjias"],
-      ["🥤","Mestre do Refresco",score(drinks),"refrescos"],
+      ["🥐","Rei dos Rissóis e Chamuças",score(salgados),"salgados"],
       ["💎","Cliente VIP",score(spent),"MT consumidos"]
     ];
     const winnerRow=([icon,title,leader,suffix])=>{const won=leader&&leader.value>0;return `<div class="ranking-row ${won?"":"muted"}"><span>${icon}</span><div><strong>${title}</strong>${won?`<small><b class="ranking-person">${esc(leader.u.name)}</b><span>• ${fmt(leader.value)} ${suffix}</span></small>`:`<small>Ainda sem campeão</small>`}</div>${won?`<b>${leader.u.avatar}</b>`:"<b>—</b>"}</div>`};
     const podium=podiumOrder.map((person,index)=>{const place=podiumPlaces[index];return person?`<div class="podium-person place-${place}"><div class="podium-avatar">${person.u.avatar}<span>${place===1?"👑":place===2?"🥈":"🥉"}</span></div><strong>${esc(person.u.name)}</strong><small>${fmt(person.value)} MT</small><div class="podium-block"><b>${place}º</b></div></div>`:`<div class="podium-person place-${place} empty-place"><div class="podium-avatar">🙂</div><strong>Por ocupar</strong><small>0 MT</small><div class="podium-block"><b>${place}º</b></div></div>`}).join("");
-    openModal(`<div class="ranking-modal"><div class="ranking-crown">🏆</div><div class="eyebrow">RANKING MANINGUE SÉRIO 😅</div><h3>🥇 Hall da Fome</h3><p>Aqui não há esquema: os pedidos é que mandam.</p><div class="podium-title"><strong>TOP 3 DOS BOSSES</strong><small>Quem queimou mais mola em food</small></div><div class="podium">${podium}</div><div class="ranking-section"><strong>Campeões da fome</strong><small>Os bosses de cada categoria.</small></div><div class="ranking-list">${leaders.map(winnerRow).join("")}</div><button class="primary orange" data-close>BAZAR PARA COMER 😋</button></div>`);
+    openModal(`<div class="ranking-modal"><div class="ranking-crown">🏆</div><div class="eyebrow">RANKING MANINGUE SÉRIO 😅</div><h3>🥇 Hall da Fome</h3><p>Aqui não há esquema: os pedidos é que mandam.</p><div class="podium-title"><strong>TOP 3 DOS BOSSES</strong><small>Quem queimou mais mola em food</small></div><div class="podium">${podium}</div><div class="ranking-section"><strong>Campeões da fome</strong><small>Os bosses de cada categoria.</small></div><div class="ranking-list">${leaders.map(winnerRow).join("")}</div><button class="primary orange" data-close>FECHAR O HALL</button></div>`);
     if(cloudRows===null)loadCloudRanking().then(rows=>{if($(".ranking-modal"))rankingModal(rows)}).catch(()=>toast("O Hall partilhado está offline. Mostrei os dados deste aparelho."));
   }
 
@@ -281,14 +283,14 @@
         <div class="opening-phrase"><span>💬</span>${esc(openingPhrase)}</div>
       </div>
       <div class="access-grid">
-        <button class="access-card primary" data-entry="user">
-          <span class="access-icon">🙂</span><span><strong>Entrar como boss da fome</strong><small>Ver a mola, mandar pedidos e acompanhar o teu food.</small></span><span class="access-arrow">›</span>
+        <button class="access-card primary" data-entry="user" aria-label="Entrar como utilizador">
+          <span class="access-icon" aria-hidden="true">🙂</span><span><strong>Entrar como boss da fome</strong><small>Ver a mola, mandar pedidos e acompanhar o teu food.</small></span><span class="access-arrow" aria-hidden="true">›</span>
         </button>
-        <button class="access-card admin" data-entry="admin">
-          <span class="access-icon">🧑🏽‍💼</span><span><strong>Cantinho do administrador</strong><small>São processos: pessoas, produtos, mola e pedidos.</small></span><span class="access-arrow">›</span>
+        <button class="access-card admin" data-entry="admin" aria-label="Entrar no painel administrativo">
+          <span class="access-icon" aria-hidden="true">🧑🏽‍💼</span><span><strong>Cantinho do administrador</strong><small>Gerir pessoas, produtos, saldos e pedidos.</small></span><span class="access-arrow" aria-hidden="true">›</span>
         </button>
-        <button class="access-card ranking" id="openRanking">
-          <span class="access-icon">🏆</span><span><strong>Ver os bosses da fome</strong><small>Pódio e campeões maningue fortes da turma.</small></span><span class="access-arrow">›</span>
+        <button class="access-card ranking" id="openRanking" aria-label="Abrir Hall da Fome">
+          <span class="access-icon" aria-hidden="true">🏆</span><span><strong>Ver os bosses da fome</strong><small>Pódio e campeões maningue fortes da turma.</small></span><span class="access-arrow" aria-hidden="true">›</span>
         </button>
       </div>
       <div class="access-footnote">🔒 Mete o PIN certo, boss. Sem esquemas.</div>
@@ -316,14 +318,14 @@
     const qty=id=>orders.reduce((s,o)=>s+o.items.filter(i=>i.productId===id).reduce((a,i)=>a+i.qty,0),0);
     const spent=userSpent(u.id),recharged=userRecharge(u.id),donated=userDonation(u.id),available=userAvailable(u.id),funds=u.monthlyBalance+recharged;
     return `<div class="hero"><div class="eyebrow">Então, ${esc(u.name)}, está nice?</div><h2>Vamos txovar essa fome? 😋</h2><p>Escolhe o food, controla a mola e acompanha os teus pedidos.</p><div class="hero-chip">💬 ${esc(openingPhrase)}</div></div>
-      <div class="stats"><div class="stat"><span class="emoji">🥖</span><strong>${qty(1)}</strong><span>Meus breads</span></div><div class="stat"><span class="emoji">🥟</span><strong>${qty(2)}</strong><span>Badjias</span></div><div class="stat"><span class="emoji">🧾</span><strong>${orders.length}</strong><span>Pedidos</span></div></div>
+      <div class="stats"><div class="stat"><span class="emoji" aria-hidden="true">🥖</span><strong>${qty(1)}</strong><span>Breads</span></div><div class="stat"><span class="emoji" aria-hidden="true">🥟</span><strong>${qty(2)}</strong><span>Badjias</span></div><div class="stat"><span class="emoji" aria-hidden="true">🧾</span><strong>${orders.length}</strong><span>Pedidos</span></div></div>
       <div class="head"><div><h3>Meu saldo</h3><p>${monthName}</p></div><button class="link" data-user-page="balance">Ver detalhes →</button></div>
       <div class="card balance"><div class="balance-top"><div><div class="label">Saldo disponível</div><div class="money">${fmt(available)} <small>MT</small></div></div><div class="wallet">👛</div></div>
       <div class="split cols-4"><div><div class="label">Saldo mensal</div><div class="mini">${fmt(u.monthlyBalance)} MT</div></div><div><div class="label">Recargas</div><div class="mini available">+${fmt(recharged)} MT</div></div><div><div class="label">Compras</div><div class="mini spent">−${fmt(spent)} MT</div></div><div><div class="label">Ao padeiro</div><div class="mini donation-out">−${fmt(donated)} MT</div></div></div>
       <div class="progress"><span style="width:${funds?Math.min(100,(spent+donated)/funds*100):100}%"></span></div><div class="tip ${available<=0?"danger-tip":available<=100?"warning-tip":""}"><span>${available<=0?"🚨":available<=100?"😅":"💡"}</span><span>${balanceMessage(available)}</span></div></div>
       <div class="head"><div><h3>Atalhos, boss</h3><p>O mambo está todo aqui.</p></div></div>
       <div class="quick-grid"><button class="quick" data-user-page="menu"><span class="qicon">🛒</span><strong>Mandar pedido</strong><small>Escolher food e quantidades.</small></button><button class="quick" data-user-page="orders"><span class="qicon">📋</span><strong>Meus pedidos</strong><small>Ver onde anda o teu food.</small></button></div>
-      <div class="head"><div><h3>Últimos pedidos</h3><p>O food que passou por aqui.</p></div></div>
+      <div class="head"><div><h3>Últimos pedidos</h3><p>Os teus pedidos mais recentes.</p></div></div>
       <div class="card orders">${orders.length?orders.slice(0,3).map(userOrderRow).join(""):empty("🍽️","Ainda nada, boss. Bora mandar um pedido?")}</div>`;
   }
 
@@ -352,31 +354,31 @@
     const orderable=state.products.filter(canOrderProduct).sort(byName);
     const products=orderable.filter(p=>category==="Todos"||p.category===category);
     const cats=["Todos",...[...new Set(orderable.map(p=>p.category))].sort((a,b)=>a.localeCompare(b,"pt",{sensitivity:"base"}))];
-    return `<div class="categories" aria-label="Categorias do cardápio">${cats.map(c=>`<button class="chip ${c===category?"active":""}" data-category="${esc(c)}" aria-pressed="${c===category}">${esc(c)}</button>`).join("")}</div>
+    return `<div class="categories" role="group" aria-label="Categorias do menu">${cats.map(c=>`<button class="chip ${c===category?"active":""}" data-category="${esc(c)}" aria-pressed="${c===category}">${esc(c)}</button>`).join("")}</div>
       <div class="card product-list">${products.map(p=>{const price=selectedUnitPrice(p,mode),qty=Number(currentCart[p.id]||0);return `<div class="product ${qty>0?"selected":""}"><div class="picon">${esc(p.icon)}</div><div class="product-main"><strong>${esc(p.name)}</strong><div class="price">${price>0?`${fmt(price)} MT`:"Preço a confirmar"}</div>${p.contactForFlavor?`<small class="contact-note">📞 Vamos contactar-te para confirmar sabor e disponibilidade.</small>`:""}<div class="product-options">${optionsMarkup(p,mode)}</div></div><div class="qty"><button data-cart-minus="${p.id}" data-cart-mode="${mode}" aria-label="Diminuir quantidade de ${esc(p.name)}">−</button><span aria-live="polite" aria-label="Quantidade de ${esc(p.name)}">${qty}</span><button data-cart-plus="${p.id}" data-cart-mode="${mode}" aria-label="Aumentar quantidade de ${esc(p.name)}">+</button></div></div>`}).join("")}</div>`;
   }
-  function customRequestCard(mode){const open=customOpen[mode],value=modeCustom(mode);return `<div class="custom-request card"><button data-toggle-custom="${mode}" aria-expanded="${open}" aria-controls="custom-area-${mode}"><span aria-hidden="true">✍🏽</span><div><strong>Não encontraste? Escreve aí, boss</strong><small>Faz um pedido especial e confirmamos o preço.</small></div><b aria-hidden="true">${open?"−":"+"}</b></button><div class="custom-fee-alert" role="note"><span class="custom-fee-icon" aria-hidden="true">⚠️</span><div><strong>AVISO IMPORTANTE</strong><span>Pedidos fora da lista podem ter um acréscimo de <b>1 a 100 MT</b>, conforme o produto e a dificuldade de encontrar.</span></div></div>${open?`<div class="custom-request-body" id="custom-area-${mode}"><label for="customRequest-${mode}">O QUE PROCURAS?</label><textarea id="customRequest-${mode}" data-custom-mode="${mode}" maxlength="160" placeholder="Ex.: Quero um bolo de chocolate...">${esc(value)}</textarea><small>O administrador vai contactar-te para confirmar disponibilidade e mola.</small></div>`:""}</div>`}
+  function customRequestCard(mode){const open=customOpen[mode],value=modeCustom(mode);return `<div class="custom-request card"><button data-toggle-custom="${mode}" aria-expanded="${open}" aria-controls="custom-area-${mode}"><span aria-hidden="true">✍🏽</span><div><strong>Não encontraste? Escreve aí, boss</strong><small>Faz um pedido especial e confirmamos o preço.</small></div><b aria-hidden="true">${open?"−":"+"}</b></button><div class="custom-fee-alert" role="note"><span class="custom-fee-icon" aria-hidden="true">⚠️</span><div><strong>AVISO IMPORTANTE</strong><span>Pedidos fora da lista podem ter um acréscimo de <b>1 a 100 MT</b>, dependendo do produto e da dificuldade em encontrá-lo. O administrador confirmará o preço final, que será descontado do saldo.</span></div></div>${open?`<div class="custom-request-body" id="custom-area-${mode}"><label for="customRequest-${mode}">O QUE PROCURAS?</label><textarea id="customRequest-${mode}" data-custom-mode="${mode}" maxlength="160" placeholder="Ex.: Quero um bolo de chocolate...">${esc(value)}</textarea><small>O administrador vai contactar-te para confirmar o preço e a disponibilidade.</small></div>`:""}</div>`}
   function reviewOrderModal(mode){
     const currentCart=cart,total=cartTotal(currentCart,"user"),needsContact=cartNeedsContact(currentCart,"user"),special=customRequest.trim();
     const lines=Object.entries(currentCart).filter(([id,qty])=>qty>0&&canOrderProduct(product(id))).map(([id,qty])=>{const p=product(id),choices=Object.values(selectedChoices(p,mode)).join(", "),price=selectedUnitPrice(p,mode);return `<div class="review-line"><span class="review-icon">${esc(p.icon)}</span><div><strong>${esc(p.name)} × ${qty}</strong><small>${choices?esc(choices):esc(p.category)}</small></div><b>${price>0?`${fmt(price*qty)} MT`:"A confirmar"}</b></div>`}).join("");
-    openModal(`<div class="review-modal"><div class="head" style="margin-top:0"><div><h3>Confirma o teu pedido</h3><p>Vê se está tudo nice antes de mandar.</p></div><span style="font-size:36px" aria-hidden="true">🧺</span></div><div class="review-schedule"><span>📅</span><div><strong>${orderSchedule==="tomorrow"?"Pedido agendado para amanhã":"Pedido para hoje"}</strong><small>${orderDateLabel(orderSchedule==="tomorrow"?scheduledOrderDate():new Date())}</small></div></div><div class="review-list">${lines}${special?`<div class="review-line special"><span class="review-icon">📝</span><div><strong>Pedido especial</strong><small>${esc(special)}</small></div><b>A confirmar</b></div>`:""}</div>${needsContact?`<div class="review-warning"><span aria-hidden="true">📞</span><div><strong>Há detalhes para confirmar</strong><small>O administrador vai confirmar preço, sabor ou disponibilidade contigo.</small></div></div>`:""}<div class="review-total"><span>Total ${needsContact?"estimado":"do pedido"}</span><strong>${needsContact?(total>0?`${fmt(total)} MT + confirmar`:"A confirmar"):`${fmt(total)} MT`}</strong></div><div class="sheet-actions"><button class="secondary" data-close>Voltar e ajustar</button><button class="primary orange" id="submitUserOrder">CONFIRMAR PEDIDO</button></div></div>`);
+    openModal(`<div class="review-modal"><div class="head" style="margin-top:0"><div><h3>Confirma o teu pedido</h3><p>Vê se está tudo nice antes de mandar.</p></div><span style="font-size:36px" aria-hidden="true">🧺</span></div><div class="review-schedule"><span aria-hidden="true">📅</span><div><strong>${orderSchedule==="tomorrow"?"Pedido agendado para amanhã às 06:00":"Pedido para hoje"}</strong><small>${orderDateLabel(orderSchedule==="tomorrow"?scheduledOrderDate():new Date())}</small></div></div><div class="review-list">${lines}${special?`<div class="review-line special"><span class="review-icon" aria-hidden="true">📝</span><div><strong>Pedido especial</strong><small>${esc(special)}</small></div><b>Preço a confirmar</b></div>`:""}</div>${needsContact?`<div class="review-warning"><span aria-hidden="true">📞</span><div><strong>Há detalhes para confirmar</strong><small>O administrador vai confirmar preço, sabor ou disponibilidade contigo.</small></div></div>`:""}<div class="review-total"><span>Total ${needsContact?"estimado":"do pedido"}</span><strong>${needsContact?(total>0?`${fmt(total)} MT + confirmar`:"Preço a confirmar"):`${fmt(total)} MT`}</strong></div><div class="sheet-actions"><button class="secondary" data-close>Voltar e ajustar</button><button class="primary orange" id="submitUserOrder">CONFIRMAR PEDIDO</button></div></div>`);
   }
   function userMenu(u){
     const available=userAvailable(u.id),total=cartTotal(cart,"user"),needsContact=cartNeedsContact(cart,"user");
     return `<div class="head" style="margin-top:2px"><div><h2>Manda vir o food</h2><p>Escolhe o que vai txovar essa fome.</p></div><span style="font-size:39px">🧺</span></div>
-      ${available<=150?`<div class="balance-alert ${available<=0?"negative":""}"><span>${available<=0?"🚨":"👛"}</span><div><strong>${available<0?"Território das dívidas":available===0?"Saldo esgotado":"Saldo a ficar baixo"}</strong><small>${balanceMessage(available)}</small></div></div>`:""}
-      <div class="schedule-card card"><div><strong>Quando queres receber?</strong><small>Escolhe agora ou deixa o pedido preparado para amanhã.</small></div><div class="schedule-options" role="group" aria-label="Data do pedido"><button class="schedule-option ${orderSchedule==="today"?"active":""}" data-order-schedule="today" aria-pressed="${orderSchedule==="today"}"><span>☀️</span><strong>Hoje</strong><small>${orderDateLabel(new Date())}</small></button><button class="schedule-option ${orderSchedule==="tomorrow"?"active":""}" data-order-schedule="tomorrow" aria-pressed="${orderSchedule==="tomorrow"}"><span>📅</span><strong>Amanhã</strong><small>${orderDateLabel(scheduledOrderDate())}</small></button></div></div>
+      ${available<=150?`<div class="balance-alert ${available<=0?"negative":""}"><span aria-hidden="true">${available<=0?"🚨":"👛"}</span><div><strong>${available<=0?"Saldo insuficiente":"Saldo a ficar baixo"}</strong><small>${balanceMessage(available)}</small></div></div>`:""}
+      <div class="schedule-card card"><div><strong>Quando queres receber?</strong><small>Escolhe hoje ou agenda para amanhã às 06:00.</small></div><div class="schedule-options" role="group" aria-label="Data do pedido"><button class="schedule-option ${orderSchedule==="today"?"active":""}" data-order-schedule="today" aria-pressed="${orderSchedule==="today"}"><span aria-hidden="true">☀️</span><strong>Hoje</strong><small>${orderDateLabel(new Date())}</small></button><button class="schedule-option ${orderSchedule==="tomorrow"?"active":""}" data-order-schedule="tomorrow" aria-pressed="${orderSchedule==="tomorrow"}"><span aria-hidden="true">📅</span><strong>Amanhã às 06:00</strong><small>${orderDateLabel(scheduledOrderDate())}</small></button></div></div>
       ${productPicker(cart,"user")}
       ${customRequestCard("user")}
       ${checkoutMarkup("user")}`;
   }
   function userOrderRow(o){return `<div class="order"><div class="face">🧾</div><div><strong>Pedido #${o.id}</strong><small>${orderDateLabel(o.date)} • ${itemSummary(o)}</small></div><div class="side"><b>${orderTotalLabel(o)}</b><span class="status ${o.status}">${statusText(o.status)}</span></div></div>`}
   function userOrders(u){
-    const map={"Pendente":"pending","Pago":"paid","Em dívida":"debt","Cancelado":"cancelled"};
+    const map={"Aguardando confirmação":"pending","Pago":"paid","Dívida antiga":"debt","Cancelado":"cancelled"};
     const all=state.orders.filter(o=>o.type==="user"&&o.userId===u.id);
     const list=orderFilter==="Todos"?all:all.filter(o=>o.status===map[orderFilter]);
-    return `<div class="head" style="margin-top:2px"><div><h2>Meus pedidos</h2><p>Apenas os teus pedidos.</p></div><span style="font-size:39px">📋</span></div>
-      <div class="filters" aria-label="Filtrar pedidos">${["Todos","Pendente","Pago","Em dívida","Cancelado"].map(f=>`<button class="chip ${f===orderFilter?"active":""}" data-order-filter="${f}" aria-pressed="${f===orderFilter}">${f}</button>`).join("")}</div>
+    return `<div class="head" style="margin-top:2px"><div><h2>Meus pedidos</h2><p>Acompanha os pedidos e o estado de cada um.</p></div><span style="font-size:39px" aria-hidden="true">📋</span></div>
+      <div class="filters" role="group" aria-label="Filtrar pedidos">${["Todos","Aguardando confirmação","Pago","Dívida antiga","Cancelado"].map(f=>`<button class="chip ${f===orderFilter?"active":""}" data-order-filter="${f}" aria-pressed="${f===orderFilter}">${f}</button>`).join("")}</div>
       <div class="card orders">${list.length?list.map(userOrderRow).join(""):empty("🥖","Não há pedidos com este estado.")}</div>`;
   }
   function userBalance(u){
@@ -411,7 +413,7 @@
     const todayOrders=state.orders.filter(o=>today(o.date));
     return `<div class="hero admin"><div class="eyebrow">Base do padeiro</div><h2>Todo o mambo num só sítio. 📊</h2><p>Pessoas, convidados, food e mola. Aqui não escapa nada.</p><div class="hero-chip">${pending.length} pedidos estão a fazer bichinha</div></div>
       <div class="head"><div><h3>Resumo do mês</h3><p>${monthName}</p></div></div>
-      <div class="admin-kpis"><div class="card kpi"><div class="kicon">🧾</div><strong>${month.length}</strong><span>Pedidos no mês</span></div><div class="card kpi"><div class="kicon">👤</div><strong>${guest.length}</strong><span>Pedidos sem cadastro</span></div><div class="card kpi"><div class="kicon">⏳</div><strong>${pending.length}</strong><span>Pedidos pendentes</span></div><div class="card kpi"><div class="kicon">💰</div><strong>${fmt(revenue)} MT</strong><span>Volume registado</span></div></div>
+      <div class="admin-kpis"><div class="card kpi"><div class="kicon" aria-hidden="true">🧾</div><strong>${month.length}</strong><span>Pedidos no mês</span></div><div class="card kpi"><div class="kicon" aria-hidden="true">👤</div><strong>${guest.length}</strong><span>Pedidos de convidados</span></div><div class="card kpi"><div class="kicon" aria-hidden="true">⏳</div><strong>${pending.length}</strong><span>Aguardam confirmação</span></div><div class="card kpi"><div class="kicon" aria-hidden="true">💰</div><strong>${fmt(revenue)} MT</strong><span>Valor total dos pedidos</span></div></div>
       <div class="head"><div><h3>Pedidos de hoje</h3><p>Utilizadores e convidados.</p></div><div class="action-row"><button class="primary orange" id="newAdminOrder">+ Novo pedido</button><button class="secondary receipt-open" id="openDailyReceipt">🧾 Recibo do dia</button></div></div>
       <div class="card orders">${todayOrders.length?todayOrders.slice(0,5).map(o=>adminOrderRow(o,false)).join(""):empty("🍽️","Hoje está calmo, boss. Ainda não entrou food.")}</div>`;
   }
@@ -419,17 +421,17 @@
     const owner=orderOwner(o);
     const tagClass=o.type==="guest"?"guest-tag":o.status;
     const tagText=o.type==="guest"?"Convidado":statusText(o.status);
-    const row=`<button class="order order-button" data-admin-order="${o.id}" aria-label="Abrir pedido ${o.id} de ${esc(owner.name)}"><div class="face">${esc(owner.avatar)}</div><div><strong>${esc(owner.name)}</strong><small>${orderDateLabel(o.date)} • ${itemSummary(o)} ${o.type==="guest"?"• sem cadastro":""}</small></div><div class="side"><b>${orderTotalLabel(o)}</b><span class="status ${tagClass}">${tagText}</span></div></button>`;
+    const row=`<button class="order order-button" data-admin-order="${o.id}" aria-label="Abrir pedido ${o.id} de ${esc(owner.name)}"><div class="face">${esc(owner.avatar)}</div><div><strong>${esc(owner.name)}</strong><small>${orderDateLabel(o.date)} • ${itemSummary(o)} ${o.type==="guest"?"• convidado":""}</small></div><div class="side"><b>${orderTotalLabel(o)}</b><span class="status ${tagClass}">${tagText}</span></div></button>`;
     return canDelete?`<div class="admin-order-row">${row}<button class="mini-btn delete" data-delete-order="${esc(o.id)}" aria-label="Eliminar pedido ${o.id}">🗑️</button></div>`:row;
   }
   function adminOrders(){
-    const map={"Pendente":"pending","Pago":"paid","Em dívida":"debt","Cancelado":"cancelled","Convidados":"guest"};
+    const map={"Aguardando confirmação":"pending","Pago":"paid","Dívida antiga":"debt","Cancelado":"cancelled","Convidados":"guest"};
     let list=state.orders;
     if(orderFilter==="Convidados")list=list.filter(o=>o.type==="guest");else if(orderFilter!=="Todos")list=list.filter(o=>o.status===map[orderFilter]);
     if(adminOrderDate)list=list.filter(o=>localDateKey(o.date)===adminOrderDate);
     return `<div class="head" style="margin-top:2px"><div><h2>Gestão de pedidos</h2><p>Pedidos feitos pelo admin para qualquer pessoa.</p></div><div class="action-row"><button class="primary orange" id="newAdminOrder">+ Novo pedido</button><button class="secondary receipt-open" id="openDailyReceipt">🧾 Recibo diário</button></div></div>
       <div class="order-filter-tools"><div class="form-row"><label for="adminOrderDate">FILTRAR POR DIA</label><input id="adminOrderDate" type="date" value="${esc(adminOrderDate)}"></div><button class="secondary" id="clearAdminOrderDate" ${adminOrderDate?"":"disabled"}>Todos os dias</button></div>
-      <div class="filters" aria-label="Filtrar pedidos">${["Todos","Pendente","Pago","Em dívida","Convidados","Cancelado"].map(f=>`<button class="chip ${f===orderFilter?"active":""}" data-order-filter="${f}" aria-pressed="${f===orderFilter}">${f}</button>`).join("")}</div>
+      <div class="filters" role="group" aria-label="Filtrar pedidos">${["Todos","Aguardando confirmação","Pago","Dívida antiga","Convidados","Cancelado"].map(f=>`<button class="chip ${f===orderFilter?"active":""}" data-order-filter="${f}" aria-pressed="${f===orderFilter}">${f}</button>`).join("")}</div>
       <div class="order-filter-result" aria-live="polite">${list.length} ${list.length===1?"pedido encontrado":"pedidos encontrados"}</div><div class="card orders">${list.length?list.map(o=>adminOrderRow(o,true)).join(""):empty("🥖","Não há pedidos com este filtro.")}</div>`;
   }
 
@@ -442,12 +444,12 @@
     const users=state.users.filter(u=>u.active&&!u.legacyHidden).sort(byName);
     adminCart={};adminCartChoices={};adminCustomRequest="";
     openModal(`<div class="head" style="margin-top:0"><div><h3>Novo pedido pelo admin</h3><p>Regista o pedido de um utilizador ou de um convidado.</p></div><span style="font-size:34px">🧾</span></div>
-      <div class="form-row"><label for="adminOrderType">PEDIDO PARA</label><select id="adminOrderType"><option value="user">Utilizador cadastrado</option><option value="guest">Convidado</option></select></div>
+      <div class="form-row"><label for="adminOrderType">PEDIDO PARA</label><select id="adminOrderType"><option value="user">Utilizador registado</option><option value="guest">Convidado</option></select></div>
       <div id="adminRegisteredTarget"><div class="form-row"><label for="adminOrderUser">UTILIZADOR</label><select id="adminOrderUser">${users.map(u=>`<option value="${u.id}">${esc(u.avatar)} ${esc(u.name)} • ${fmt(userAvailable(u.id))} MT disponíveis</option>`).join("")}</select></div></div>
-      <div id="adminGuestTarget" hidden><div class="form-row"><label for="adminGuestName">NOME DO CONVIDADO *</label><input id="adminGuestName" maxlength="100" placeholder="Ex.: Mokizzow"></div><div class="form-row"><label for="adminGuestPhone">CONTACTO</label><input id="adminGuestPhone" maxlength="40" placeholder="Ex.: 84 000 0000"></div></div>
+      <div id="adminGuestTarget" hidden><div class="form-row"><label for="adminGuestName">NOME DO CONVIDADO *</label><input id="adminGuestName" maxlength="100" required aria-describedby="adminGuestNameError" placeholder="Ex.: Mokizzow"><small class="field-error" id="adminGuestNameError" hidden>Escreve o nome do convidado.</small></div><div class="form-row"><label for="adminGuestPhone">CONTACTO</label><input id="adminGuestPhone" maxlength="40" inputmode="tel" aria-describedby="adminGuestPhoneError" placeholder="Ex.: 84 000 0000"><small class="field-error" id="adminGuestPhoneError" hidden>Escreve um contacto para confirmar os detalhes deste pedido.</small></div></div>
       <div class="head"><div><h3>Escolhe o food</h3><p>O admin está a fazer o pedido por esta pessoa.</p></div></div>
       ${adminProductPicker()}
-      <div class="custom-request card"><div class="custom-request-body" style="display:block"><label for="adminCustomRequest">PEDIDO FORA DA LISTA (OPCIONAL)</label><textarea id="adminCustomRequest" maxlength="160" placeholder="Ex.: Quero um bolo de chocolate..."></textarea><div class="custom-fee-alert" role="note"><span class="custom-fee-icon" aria-hidden="true">⚠️</span><div><strong>AVISO IMPORTANTE</strong><span>Pedidos fora da lista podem ter um acréscimo de <b>1 a 100 MT</b>, conforme o produto e a dificuldade de encontrar.</span></div></div></div></div>
+      <div class="custom-request card"><div class="custom-request-body" style="display:block"><label for="adminCustomRequest">PEDIDO FORA DA LISTA (OPCIONAL)</label><textarea id="adminCustomRequest" maxlength="160" placeholder="Ex.: Quero um bolo de chocolate..."></textarea><div class="custom-fee-alert" role="note"><span class="custom-fee-icon" aria-hidden="true">⚠️</span><div><strong>AVISO IMPORTANTE</strong><span>Pedidos fora da lista podem ter um acréscimo de <b>1 a 100 MT</b>, dependendo do produto e da dificuldade em encontrá-lo. Confirma o preço final antes de fechar o pedido.</span></div></div></div></div>
       <div class="review-total"><span>Total estimado</span><strong data-admin-order-total>0 MT</strong></div>
       <div class="sheet-actions"><button class="secondary" data-close>Cancelar</button><button class="primary orange" id="saveAdminOrder" disabled>CRIAR PEDIDO</button></div>`);
   }
@@ -516,7 +518,7 @@
     window.addEventListener("afterprint",cleanup,{once:true});requestAnimationFrame(()=>window.print());setTimeout(cleanup,60000);
   }
   function adminProducts(){
-    return `<div class="head" style="margin-top:2px"><div><h2>Produtos</h2><p>Cardápio, preços e disponibilidade.</p></div><button class="secondary" id="newProduct">+ Produto</button></div>
+    return `<div class="head" style="margin-top:2px"><div><h2>Produtos</h2><p>Menu, preços e disponibilidade.</p></div><button class="secondary" id="newProduct">+ Produto</button></div>
       <div class="card manage-list">${state.products.slice().sort(byName).map(p=>`<div class="manage-row"><div class="face">${esc(p.icon)}</div><div><strong>${esc(p.name)}</strong><small>${esc(p.category)} • ${p.price>0?`${fmt(p.price)} MT`:"Preço a confirmar"}${p.options?.length?" • Com opções":""} • ${p.active?"Ativo":"Oculto"}</small></div><div class="action-row"><button class="mini-btn" data-edit-product="${p.id}">Editar</button><button class="mini-btn ${p.active?"warn":"ok"}" data-toggle-product="${p.id}">${p.active?"Ocultar":"Ativar"}</button></div></div>`).join("")}</div>`;
   }
   function adminUsers(){
@@ -525,11 +527,11 @@
   }
   function adminSettings(){
     return `<div class="head" style="margin-top:2px"><div><h2>Gestão</h2><p>Configurações gerais.</p></div><span style="font-size:39px">⚙️</span></div>
-      <div class="head"><div><h3>Regra quando a mola acaba</h3><p>O admin decide se o pedido para ou entra nas dívidas.</p></div></div>
+      <div class="head"><div><h3>Regra de saldo</h3><p>Todos os pedidos exigem saldo positivo e suficiente para cobrir o valor total.</p></div></div>
       <div class="card balance-policy" role="group" aria-label="Regra para saldo insuficiente"><div class="policy-option active"><span>🛑</span><div><strong>Saldo obrigatório</strong><small>O pedido só entra quando o saldo disponível cobre o valor total.</small></div><b>ATIVA</b></div></div>
-      <div class="head"><div><h3>Segurança administrativa</h3><p>Troca o PIN atual sem o publicar no frontend.</p></div></div>
+      <div class="head"><div><h3>Segurança administrativa</h3><p>Troca o PIN usado para entrar no painel administrativo.</p></div></div>
       <div class="card campaign-settings"><div class="form-row"><label for="newAdminPin">NOVO PIN ADMINISTRATIVO</label><input id="newAdminPin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="4 a 8 números"></div><button class="primary dark" id="saveAdminPin">TROCAR PIN</button></div>
-      <div class="head"><div><h3>Ações administrativas</h3><p>Ferramentas da demonstração.</p></div></div>
+      <div class="head"><div><h3>Ações administrativas</h3><p>Ferramentas de saldo e deste aparelho.</p></div></div>
       <div class="quick-grid"><button class="quick" id="adminRecharge"><span class="qicon">💰</span><strong>Adicionar recarga</strong><small>Creditar saldo a um utilizador.</small></button><button class="quick" id="resetDemo"><span class="qicon">♻️</span><strong>Limpar este aparelho</strong><small>Apagar apenas os dados locais.</small></button></div>`;
   }
 
@@ -546,7 +548,7 @@
     if(status==="loading")return `<div class="first-pin-note"><span>⏳</span><div><strong>A confirmar a tua conta</strong><small>Estamos a consultar o PIN guardado no sistema.</small></div></div>`;
     if(status==="offline")return `<div class="first-pin-note"><span>📡</span><div><strong>Sem ligação ao servidor</strong><small>Não deu para confirmar o teu PIN. Tenta novamente.</small></div></div>`;
     if(status==="blocked")return `<div class="first-pin-note"><span>🚫</span><div><strong>Conta bloqueada</strong><small>O administrador bloqueou esta conta. Fala com ele para voltar a entrar.</small></div></div>`;
-    if(status==="pending")return `<div class="first-pin-note"><span>🕐</span><div><strong>PIN à espera do administrador</strong><small>O teu pedido já entrou. Assim que for aprovado, poderás entrar em qualquer dispositivo.</small></div></div>`;
+    if(status==="pending")return `<div class="first-pin-note"><span aria-hidden="true">🕐</span><div><strong>PIN à espera do administrador</strong><small>O pedido de acesso foi enviado. Assim que o PIN for aprovado, poderás entrar em qualquer dispositivo.</small></div></div>`;
     if(status==="active"||status==="locked")return `<div class="first-pin-note ready"><span>${status==="locked"?"🔒":"🔐"}</span><div><strong>${status==="locked"?"Conta temporariamente bloqueada":"O teu PIN já está definido"}</strong><small>${status==="locked"?"Espera 15 minutos ou pede ajuda ao administrador.":"Mete os 4 números que escolheste. Funciona em qualquer dispositivo."}</small></div></div><div class="form-row"><label for="loginUserPin">TEU PIN</label><input id="loginUserPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="current-password" placeholder="••••" ${status==="locked"?"disabled":""}></div>`;
     return `<div class="first-pin-note"><span>🆕</span><div><strong>Primeiro acesso, boss!</strong><small>Cria um PIN de 4 números. O administrador vai aprová-lo antes da primeira entrada.</small></div></div><div class="form-grid"><div class="form-row"><label for="newUserPin">NOVO PIN</label><input id="newUserPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password" placeholder="••••"></div><div class="form-row"><label for="confirmNewUserPin">CONFIRMAR PIN</label><input id="confirmNewUserPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password" placeholder="••••"></div></div>`;
   }
@@ -556,12 +558,12 @@
     openModal(`<div class="head" style="margin-top:0"><div><h3>Entrar como boss da fome</h3><p>Escolhe a tua conta. No primeiro acesso, crias o teu próprio PIN.</p></div><span style="font-size:34px">🙂</span></div>
       <div class="form-row"><label for="loginUser">UTILIZADOR</label><select id="loginUser">${loginUsers.map(u=>`<option value="${u.id}">${esc(u.avatar)} ${esc(u.name)}</option>`).join("")}</select></div>
       <div id="loginPinFields">${loginPinFields(first,"loading")}</div>
-      <div class="sheet-actions"><button class="secondary" data-close>Agora não</button><button class="primary orange" id="confirmUserLogin" disabled>A CONFIRMAR...</button></div>`);refreshLoginPinFields();
+      <div class="sheet-actions"><button class="secondary" data-close>Cancelar</button><button class="primary orange" id="confirmUserLogin" disabled>A CONFIRMAR...</button></div>`);refreshLoginPinFields();
   }
   function loginAdminModal(){
-    openModal(`<div class="head" style="margin-top:0"><div><h3>Cantinho do administrador</h3><p>Mete o PIN do mambo.</p></div><span style="font-size:34px">🧑🏽‍💼</span></div>
+    openModal(`<div class="head" style="margin-top:0"><div><h3>Cantinho do administrador</h3><p>Introduz o PIN administrativo.</p></div><span style="font-size:34px" aria-hidden="true">🧑🏽‍💼</span></div>
       <div class="form-row"><label for="adminPin">PIN DO ADMINISTRADOR</label><input id="adminPin" type="password" inputmode="numeric" maxlength="8" autocomplete="current-password" placeholder="••••"></div>
-      <div class="sheet-actions"><button class="secondary" data-close>Agora não</button><button class="primary dark" id="confirmAdminLogin">SÃO PROCESSOS</button></div>`);
+      <div class="sheet-actions"><button class="secondary" data-close>Cancelar</button><button class="primary dark" id="confirmAdminLogin">ENTRAR NO PAINEL</button></div>`);
   }
   function editOrderModal(id){
     const o=state.orders.find(x=>x.id===Number(id)),owner=orderOwner(o);
@@ -570,7 +572,7 @@
       ${o.guestPhone?`<div class="order-contact">📞 Contacto: <strong>${esc(o.guestPhone)}</strong></div>`:""}
       <div class="order-price-editor"><div class="price-editor-title"><strong>Preços deste pedido</strong><small>Podes personalizar cada produto só para este pedido.</small></div>${priceRows}${o.customRequest?`<div class="order-price-row custom-line"><div><span>📝</span><div><strong>Pedido especial</strong><small>${esc(o.customRequest)}</small></div></div><label><span>Preço</span><input data-order-price data-custom-price data-qty="1" type="number" min="0" step="1" value="${Number(o.customPrice||0)}"><b>MT</b></label></div>`:""}${o.guestDonation?`<div class="order-fixed-row"><span>🚗 Contribuição ao padeiro</span><b>${fmt(o.guestDonation)} MT</b></div>`:""}<div class="order-edit-total"><span>Total do pedido</span><output id="editableOrderTotal" data-donation="${Number(o.guestDonation||0)}" aria-live="polite">${fmt(orderTotal(o))} MT</output></div></div>
       ${o.needsContact?`<div class="price contact-order">📞 Confirma os preços, sabores ou disponibilidade antes de fechar.</div>`:""}
-      <div class="form-row"><label for="orderStatus">ESTADO</label><select id="orderStatus"><option value="pending" ${o.status==="pending"?"selected":""}>Pendente</option><option value="paid" ${o.status==="paid"?"selected":""}>Pago</option><option value="debt" ${o.status==="debt"?"selected":""}>Em dívida</option><option value="cancelled" ${o.status==="cancelled"?"selected":""}>Cancelado</option></select></div>
+      <div class="form-row"><label for="orderStatus">ESTADO</label><select id="orderStatus"><option value="pending" ${o.status==="pending"?"selected":""}>Aguardando confirmação</option><option value="paid" ${o.status==="paid"?"selected":""}>Pago</option>${o.status==="debt"?`<option value="debt" selected>Dívida antiga</option>`:""}<option value="cancelled" ${o.status==="cancelled"?"selected":""}>Cancelado</option></select></div>
       <div class="sheet-actions"><button class="secondary" data-close>Cancelar</button><button class="primary" id="saveOrderStatus" data-id="${o.id}">Guardar pedido e preços</button></div>`);
   }
   function deleteOrderConfirmModal(id){
@@ -580,7 +582,7 @@
   }
   function productModal(id=null){
     const p=id?product(id):{name:"",icon:"🍞",price:0,category:"Outros",active:true};
-    openModal(`<div class="head" style="margin-top:0"><div><h3>${id?"Editar produto":"Novo produto"}</h3><p>Dados do cardápio.</p></div><span style="font-size:34px">${esc(p.icon)}</span></div>
+    openModal(`<div class="head" style="margin-top:0"><div><h3>${id?"Editar produto":"Novo produto"}</h3><p>Dados do menu.</p></div><span style="font-size:34px" aria-hidden="true">${esc(p.icon)}</span></div>
       <div class="form-row"><label for="productName">NOME</label><input id="productName" value="${esc(p.name)}"></div>
       <div class="form-grid"><div class="form-row"><label for="productIcon">ÍCONE</label><input id="productIcon" value="${esc(p.icon)}" maxlength="4"></div><div class="form-row"><label for="productPrice">PREÇO (MT)</label><input id="productPrice" type="number" min="0" value="${p.price}"></div></div>
       <div class="form-row"><label for="productCategory">CATEGORIA</label><input id="productCategory" value="${esc(p.category)}"></div>
@@ -607,21 +609,27 @@
   function userRechargeModal(value=""){
     openModal(`<div class="head" style="margin-top:0"><div><h3>Quero recarregar</h3><p>Escolhe quanta mola queres colocar no teu saldo.</p></div><span style="font-size:36px">💸</span></div>
       <div class="form-row"><label for="userRechargeAmount">VALOR DA RECARGA (MT)</label><input id="userRechargeAmount" type="number" min="1" step="1" inputmode="numeric" placeholder="Ex.: 200" value="${esc(value)}" aria-describedby="userRechargeHint"><small class="field-hint" id="userRechargeHint">O saldo entra depois de o administrador confirmar a transferência.</small></div>
-      <div class="sheet-actions"><button class="secondary" data-close>Agora não</button><button class="primary orange" id="showRechargeNumber">CONTINUAR</button></div>`);
+      <div class="sheet-actions"><button class="secondary" data-close>Cancelar</button><button class="primary orange" id="showRechargeNumber">CONTINUAR</button></div>`);
   }
   function userRechargePaymentModal(amount){
-    openModal(`<div class="donation-pop"><div class="donation-emoji">📲</div><div class="eyebrow">RECARGA DE SALDO</div><h3>Faz a transferência, boss</h3><p>Transfere <strong>${fmt(amount)} MT</strong> para o número abaixo e envia o comprovativo ao administrador.</p><div class="payment-number"><span>Número para transferência</span><strong>876 760 317</strong><button id="copyRechargeNumber" data-number="${RECHARGE_NUMBER}" data-amount="${amount}">📋 COPIAR NÚMERO</button></div><div class="recharge-pending-note"><span>⏳</span><div><strong>A recarga fica pendente</strong><small>O valor só aparece no saldo depois da confirmação do administrador.</small></div></div><div class="sheet-actions"><button class="secondary" id="editUserRecharge" data-amount="${amount}">ALTERAR VALOR</button><button class="primary" data-close>CONCLUIR</button></div></div>`);
+    openModal(`<div class="donation-pop"><div class="donation-emoji" aria-hidden="true">📲</div><div class="eyebrow">RECARGA DE SALDO</div><h3>Faz a transferência, boss</h3><p>Transfere <strong>${fmt(amount)} MT</strong> para o número abaixo e envia o comprovativo ao administrador.</p><div class="payment-number"><span>Número para transferência</span><strong>876 760 317</strong><button id="copyRechargeNumber" data-number="${RECHARGE_NUMBER}" data-amount="${amount}">📋 COPIAR NÚMERO</button></div><div class="recharge-pending-note"><span aria-hidden="true">⏳</span><div><strong>A recarga fica pendente</strong><small>O valor só aparece no saldo depois da confirmação do administrador.</small></div></div><div class="sheet-actions"><button class="secondary" id="editUserRecharge" data-amount="${amount}">ALTERAR VALOR</button><button class="primary" data-close>FECHAR</button></div></div>`);
   }
-  async function placeUserOrder(forceDebt=false){
+  async function placeUserOrder(){
     const items=Object.entries(cart).filter(([id,q])=>q>0&&canOrderProduct(product(id))).map(([id,qty])=>{const p=product(id);return {productId:Number(id),qty,choices:{...selectedChoices(p,"user")},unitPrice:selectedUnitPrice(p,"user")}});
     const special=customRequest.trim();if(!items.length&&!special){cart={};render();toast("Esse food hoje bazou, boss. Escolhe outro.");return}
     const total=items.reduce((s,i)=>s+itemPrice(i)*i.qty,0),u=activeUser(),available=userAvailable(u.id),insufficient=total>available;
     if(insufficient||available<=0){balanceRuleModal(total,available);return}
     const orderDate=orderSchedule==="tomorrow"?scheduledOrderDate():new Date().toISOString();
-    const order={id:Math.max(0,...state.orders.map(o=>o.id))+1,type:"user",userId:u.id,date:orderDate,updatedAt:new Date().toISOString(),pendingSync:true,status:insufficient?"debt":"pending",items,customRequest:special,needsContact:items.some(i=>product(i.productId)?.contactForFlavor||i.unitPrice===0)||Boolean(special)};order.syncKey=stableSyncKey("order",order);
-    const cloudResult=cloudCredentials.userPin?await submitUserOperational(order):false;
-    if(cloudResult?.reason==="insufficient"){balanceRuleModal(total,Number(cloudResult.available||available));return}
-    state.orders.unshift(order);cart={};cartChoices={};customRequest="";customOpen.user=false;orderSchedule="today";save();if(cloudCredentials.userPin)await syncUserOperational(u.id,cloudCredentials.userPin);closeModal();page="home";render();celebrateOrder();if(insufficient)orderStatusFeedback("debt",order);
+    const order={id:Math.max(0,...state.orders.map(o=>o.id))+1,type:"user",userId:u.id,date:orderDate,updatedAt:new Date().toISOString(),pendingSync:true,status:"pending",items,customRequest:special,needsContact:items.some(i=>product(i.productId)?.contactForFlavor||i.unitPrice===0)||Boolean(special)};order.syncKey=stableSyncKey("order",order);
+    if(!cloudCredentials.userPin){toast("A tua sessão expirou. Entra novamente para enviar o pedido.");return}
+    const cloudResult=await submitUserOperational(order);
+    if(!cloudResult?.ok){
+      if(cloudResult?.reason==="insufficient"){balanceRuleModal(total,Number(cloudResult.available||available));return}
+      if(cloudResult?.reason==="invalid_schedule"){toast("Não foi possível agendar. Escolhe novamente amanhã às 06:00.");return}
+      if(cloudResult?.reason==="unauthorized"){closeModal();logout();toast("A sessão expirou. Entra novamente para continuar.");return}
+      toast("Não foi possível enviar o pedido. Verifica a ligação e tenta novamente.");return;
+    }
+    state.orders.unshift(order);cart={};cartChoices={};customRequest="";customOpen.user=false;orderSchedule="today";save();closeModal();page="home";render();celebrateOrder("Pedido criado e sincronizado. Já aparece nos teus pedidos. 🎉");
   }
   async function saveAdminOrder(){
     const type=$("#adminOrderType")?.value||"user",special=$("#adminCustomRequest")?.value.trim()||"",items=Object.entries(adminCart).filter(([id,q])=>q>0&&canOrderProduct(product(id))).map(([id,qty])=>{const p=product(id);return {productId:Number(id),qty,choices:{...selectedChoices(p,"admin")},unitPrice:selectedUnitPrice(p,"admin")}});
@@ -629,13 +637,15 @@
     const selectedUser=type==="user"?user($("#adminOrderUser")?.value):null;
     const guestName=type==="guest"?$("#adminGuestName")?.value.trim():"",guestPhone=type==="guest"?$("#adminGuestPhone")?.value.trim():"";
     if(type==="user"&&!selectedUser){toast("Escolhe o utilizador do pedido.");return}
-    if(type==="guest"&&guestName.length<2){$("#adminGuestName")?.focus();toast("Mete o nome do convidado, boss.");return}
+    if(type==="guest"&&guestName.length<2){const input=$("#adminGuestName"),error=$("#adminGuestNameError");input?.setAttribute("aria-invalid","true");if(error)error.hidden=false;input?.focus();toast("Escreve o nome do convidado.");return}
     const needsContact=items.some(i=>product(i.productId)?.contactForFlavor||i.unitPrice===0)||Boolean(special);
-    if(type==="guest"&&needsContact&&!guestPhone){$("#adminGuestPhone")?.focus();toast("Mete um contacto para confirmarmos os detalhes.");return}
+    if(type==="guest"&&needsContact&&!guestPhone){const input=$("#adminGuestPhone"),error=$("#adminGuestPhoneError");input?.setAttribute("aria-invalid","true");if(error)error.hidden=false;input?.focus();toast("Escreve um contacto para confirmarmos os detalhes.");return}
     const total=items.reduce((sum,item)=>sum+itemPrice(item)*item.qty,0),available=selectedUser?userAvailable(selectedUser.id):0;
     if(type==="user"&&(available<=0||total>available)){toast(`O utilizador só pode fazer pedidos com saldo suficiente. Disponível: ${fmt(available)} MT.`);return}
     const order={id:Math.max(0,...state.orders.map(o=>Number(o.id)||0))+1,type,userId:selectedUser?.id||null,guestName:type==="guest"?guestName:null,guestPhone:type==="guest"?guestPhone:null,date:new Date().toISOString(),updatedAt:new Date().toISOString(),pendingSync:false,status:"pending",items,customRequest:special,needsContact,guestDonation:0};
-    order.syncKey=stableSyncKey("order",order);state.orders.unshift(order);save();const synced=await syncAdminOperational();closeModal();render();celebrateOrder();toast(synced?"Pedido criado e sincronizado em todos os dispositivos.":"Pedido criado neste aparelho. Será sincronizado quando houver ligação.");
+    order.syncKey=stableSyncKey("order",order);state.orders.unshift(order);save();const synced=await syncAdminOperational();
+    if(!synced){state.orders=state.orders.filter(row=>row.syncKey!==order.syncKey);save();toast("Não foi possível criar o pedido no servidor. Verifica o saldo e a ligação, depois tenta novamente.");return}
+    closeModal();render();celebrateOrder("Pedido criado e sincronizado em todos os dispositivos. 🎉");
   }
 
   document.addEventListener("click",async e=>{
@@ -689,15 +699,14 @@
       const verified=await cloudRpc("verify_user_pin",{p_user_id:u.id,p_pin:pin}).catch(()=>"offline");
       if(verified!=="ok"){if(verified==="locked")cloudPinStates.set(Number(u.id),"locked");toast(verified==="locked"?"Muitas tentativas. A conta ficou bloqueada por 15 minutos.":verified==="offline"?"Sem ligação ao servidor. Tenta novamente.":"Eish, boss! Esse PIN não bate.");refreshLoginPinFields();return}
       u.pin="";u.pinConfigured=true;u.pinSetAt=new Date().toISOString();storeCloudCredentials({mode:"user",userId:u.id,userPin:pin});save();
-      state.session={mode:"user",userId:u.id};save();await syncUserOperational(u.id,pin);await hydrateUserOperational(u.id,pin);closeModal();page="home";render();return;
+      state.session={mode:"user",userId:u.id};save();await syncUserOperational(u.id,pin);await hydrateUserOperational(u.id,pin);closeModal();page="home";render();focusMain();return;
     }
     if(e.target.id==="confirmAdminLogin"){
       const adminPin=$("#adminPin").value.trim();if(!/^\d{4,8}$/.test(adminPin)){toast("Mete um PIN administrativo válido, boss.");return}
       const loaded=await cloudRpc("load_admin_operational_state",{p_admin_pin:adminPin}).catch(()=>null);if(!loaded){toast("Esse PIN não abre o mambo ou a conta está temporariamente bloqueada.");return}
-      storeCloudCredentials({mode:"admin",adminPin});state.session={mode:"admin",userId:null};save();await loadAdminPinStates();await hydrateAdminOperational(adminPin);closeModal();adminSection="dashboard";render();return;
+      storeCloudCredentials({mode:"admin",adminPin});state.session={mode:"admin",userId:null};save();await loadAdminPinStates();await hydrateAdminOperational(adminPin);closeModal();adminSection="dashboard";render();focusMain();return;
     }
     if(e.target.id==="submitUserOrder"){await placeUserOrder();return}
-    if(e.target.id==="confirmDebtOrder"){await placeUserOrder(true);return}
     if(e.target.id==="saveAdminOrder"){await saveAdminOrder();return}
 
     const ao=e.target.closest("[data-admin-order]");if(ao){editOrderModal(ao.dataset.adminOrder);return}
@@ -710,9 +719,11 @@
     }
     if(e.target.id==="saveOrderStatus"){
       const o=state.orders.find(x=>x.id===Number(e.target.dataset.id));if(!o)return;
-      const previousStatus=o.status,inputs=$$('[data-order-price]'),status=$("#orderStatus").value,unpriced=inputs.find(input=>(Number(input.value)||0)<=0);if(status==="paid"&&unpriced){unpriced.focus();toast("Define todos os preços antes de marcar como pago, boss.");return}
+      const previous=structuredClone(o),previousStatus=o.status,inputs=$$('[data-order-price]'),status=$("#orderStatus").value,unpriced=inputs.find(input=>(Number(input.value)||0)<=0);if(status==="paid"&&unpriced){unpriced.focus();toast("Define todos os preços antes de marcar como pago, boss.");return}
       inputs.forEach(input=>{const value=Math.max(0,Number(input.value)||0);if(input.hasAttribute("data-custom-price"))o.customPrice=value;else if(o.items[Number(input.dataset.itemIndex)])o.items[Number(input.dataset.itemIndex)].unitPrice=value});
-      o.status=status;o.needsContact=(o.items||[]).some(item=>itemPrice(item)<=0)||Boolean(o.customRequest&&Number(o.customPrice||0)<=0);o.priceAdjustedAt=new Date().toISOString();o.updatedAt=o.priceAdjustedAt;save();void syncAdminOperational().catch(()=>{});closeModal();render();if(status!==previousStatus&&(status==="paid"||status==="debt")){orderStatusFeedback(status,o)}else toast("Pedido e preços atualizados. Está nice! 🧾");return
+      o.status=status;o.needsContact=(o.items||[]).some(item=>itemPrice(item)<=0)||Boolean(o.customRequest&&Number(o.customPrice||0)<=0);o.priceAdjustedAt=new Date().toISOString();o.updatedAt=o.priceAdjustedAt;save();
+      const synced=await syncAdminOperational();if(!synced){Object.assign(o,previous);save();toast("Não foi possível atualizar o pedido. Confirma o saldo disponível e tenta novamente.");return}
+      closeModal();render();if(status!==previousStatus&&status==="paid"){orderStatusFeedback()}else toast("Pedido e preços atualizados. 🧾");return
     }
     if(e.target.id==="newProduct"){productModal();return}
     const ep=e.target.closest("[data-edit-product]");if(ep){productModal(Number(ep.dataset.editProduct));return}
@@ -742,7 +753,6 @@
       const resetOk=await cloudRpc("reset_user_pin",{p_admin_pin:cloudCredentials.adminPin,p_user_id:u.id}).catch(()=>false);if(!resetOk){toast("Não deu para reiniciar o PIN no servidor.");return}u.pin="";u.pinConfigured=false;delete u.pinSetAt;cloudPinStates.set(Number(u.id),"unset");save();closeModal();render();toast(`PIN de ${u.name} reiniciado em todos os dispositivos.`);return;
     }
     const approvePin=e.target.closest("[data-approve-pin]");if(approvePin){const uid=Number(approvePin.dataset.approvePin),approved=await cloudRpc("approve_user_pin",{p_admin_pin:cloudCredentials.adminPin,p_user_id:uid}).catch(()=>false);if(!approved){toast("Não deu para aprovar este PIN.");return}cloudPinStates.set(uid,"active");render();toast(`PIN de ${user(uid)?.name||"utilizador"} aprovado. Já pode entrar! 🔐`);return}
-    const policy=e.target.closest("[data-balance-policy]");if(policy){state.settings.balancePolicy=policy.dataset.balancePolicy;touchSettings();save();void syncAdminOperational().catch(()=>{});render();toast(state.settings.balancePolicy==="block"?"Sem mola, o pedido fica bloqueado. 🛑":"Saldo negativo permitido. Entrou no território das dívidas. 😅");return}
     if(e.target.id==="saveAdminPin"){
       const newPin=$("#newAdminPin").value.trim();if(!/^\d{4,8}$/.test(newPin)){toast("O novo PIN deve ter 4 a 8 números.");return}
       const changed=await cloudRpc("admin_change_pin",{p_current_pin:cloudCredentials.adminPin,p_new_pin:newPin}).catch(()=>false);if(!changed){toast("Não foi possível trocar o PIN. Tenta novamente.");return}
@@ -770,6 +780,8 @@
   });
 
   document.addEventListener("input",e=>{
+    if(e.target.id==="adminGuestName"||e.target.id==="adminGuestPhone"){e.target.removeAttribute("aria-invalid");const error=$(e.target.id==="adminGuestName"?"#adminGuestNameError":"#adminGuestPhoneError");if(error)error.hidden=true}
+    if(e.target.id==="userRechargeAmount")e.target.removeAttribute("aria-invalid");
     if(e.target.matches("[data-custom-mode]")){const mode=e.target.dataset.customMode;if(mode==="admin")adminCustomRequest=e.target.value;else customRequest=e.target.value;refreshCheckout(mode);return}
     if(e.target.id==="adminCustomRequest"){adminCustomRequest=e.target.value;refreshAdminOrderSummary();return}
     if(e.target.matches("[data-order-price]")){const total=$$("[data-order-price]").reduce((sum,input)=>sum+(Math.max(0,Number(input.value)||0)*Number(input.dataset.qty||1)),0)+Number($("#editableOrderTotal")?.dataset.donation||0),output=$("#editableOrderTotal");if(output)output.textContent=`${fmt(total)} MT`;return}
@@ -794,7 +806,7 @@
   async function refreshOperationalState(){if(cloudRefreshBusy||document.hidden)return;cloudRefreshBusy=true;try{let refreshed=false;if(state.session.mode==="user"&&cloudCredentials.userPin){const sessionStatus=await userSessionStatus(state.session.userId,cloudCredentials.userPin);if(sessionStatus==="blocked"){logout();toast("A tua conta foi bloqueada pelo administrador.");return}if(sessionStatus!=="ok")return;await syncUserOperational(state.session.userId,cloudCredentials.userPin);refreshed=await hydrateUserOperational(state.session.userId,cloudCredentials.userPin)}else if(state.session.mode==="admin"&&cloudCredentials.adminPin){await syncAdminOperational();refreshed=await hydrateAdminOperational()}else{refreshed=await hydratePublicBootstrap()}if(refreshed&&!$("#modal").classList.contains("open"))render()}finally{cloudRefreshBusy=false}}
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)void refreshOperationalState()});
   setInterval(refreshOperationalState,20000);
-  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=72").catch(()=>{});}
+  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=73").catch(()=>{});}
   render();
   hydratePublicBootstrap().then(ok=>{if(ok&&!state.session.mode)render()});
 })();

@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "test": "node --check app.js && node --check sw.js && node tests/smoke.js",
     "test:e2e:smoke": "node tests/smoke.js"
   },
   "devDependencies": {
