@@ -23,10 +23,7 @@ const chromePath = process.env.CHROME_PATH || "/Applications/Google Chrome.app/C
   assert.equal(await page.getByRole("button", { name: /Pedido rápido, sem stress/i }).count(), 0, "O pedido rápido de convidado ainda está exposto");
   assert.equal(await page.getByRole("button", { name: /Cantinho do administrador/i }).count(), 1, "O acesso administrativo não carregou");
   assert.ok(await page.locator("#openRanking").count() > 0, "A página inicial não carregou");
-  const announcement = page.getByRole("alert");
-  await announcement.getByText(/Ninguém faz pedidos com saldo 0 MT ou insuficiente/i).waitFor();
-  await announcement.getByRole("button", { name: "Fechar aviso" }).click();
-  await announcement.waitFor({ state: "hidden" });
+  assert.equal(await page.getByText(/Novo mambo de pedidos/i).count(), 0, "O aviso de novas regras ainda está visível");
   await page.getByRole("button", { name: /Cantinho do administrador/i }).click();
   await page.locator("#adminPin").fill("1234");
   await page.locator("#confirmAdminLogin").click();

@@ -86,7 +86,6 @@
   let orderFilter = "Todos";
   let adminOrderDate = "";
   let adminSection = "dashboard";
-  let announcementDismissed = false;
   let orderSchedule = "today";
   let modalOpener = null;
   let modalCloseAction = null;
@@ -156,7 +155,7 @@
     localStorage.setItem(KEY,JSON.stringify(sharedState));
     sessionStorage.setItem(SESSION_KEY,JSON.stringify(state.session||{mode:null,userId:null}));
   }
-  function reset(){localStorage.removeItem(KEY);sessionStorage.removeItem(SESSION_KEY);sessionStorage.removeItem(CLOUD_SESSION_KEY);cloudCredentials={};state=cleanRemovedProducts(structuredClone(seed));page="home";adminSection="dashboard";cart={};cartChoices={};adminCart={};adminCartChoices={};customRequest="";adminCustomRequest="";orderSchedule="today";announcementDismissed=false;save();render()}
+  function reset(){localStorage.removeItem(KEY);sessionStorage.removeItem(SESSION_KEY);sessionStorage.removeItem(CLOUD_SESSION_KEY);cloudCredentials={};state=cleanRemovedProducts(structuredClone(seed));page="home";adminSection="dashboard";cart={};cartChoices={};adminCart={};adminCartChoices={};customRequest="";adminCustomRequest="";orderSchedule="today";save();render()}
   async function cloudRpc(name,body){const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);try{const response=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{method:"POST",headers:{apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${SUPABASE_ANON_KEY}`,"Content-Type":"application/json"},body:JSON.stringify(body),signal:controller.signal});if(!response.ok)throw new Error(`Supabase ${name}: ${response.status}`);const text=await response.text();return text?JSON.parse(text):null}finally{clearTimeout(timeout)}}
   async function getCloudPinStatus(id){try{const status=await cloudRpc("user_pin_status",{p_user_id:Number(id)});cloudPinStates.set(Number(id),status);return status}catch{cloudPinStates.set(Number(id),"offline");return "offline"}}
   async function loadAdminPinStates(){if(!cloudCredentials.adminPin)return;try{const rows=await cloudRpc("admin_pin_states",{p_admin_pin:cloudCredentials.adminPin});(rows||[]).forEach(row=>cloudPinStates.set(Number(row.user_id),row.locked_until&&new Date(row.locked_until)>new Date()?"locked":row.pin_status));return rows||[]}catch{return []}}
@@ -200,7 +199,7 @@
   function toast(text){const e=$("#toast");e.textContent="";requestAnimationFrame(()=>{e.textContent=text;e.classList.add("show")});clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),3600)}
   function openModal(html,onClose=null){const modal=$("#modal"),sheet=$(".sheet"),wasOpen=modal.classList.contains("open");if(!wasOpen)modalOpener=document.activeElement;modalCloseAction=onClose;$("#modalContent").innerHTML=`<div class="modal-brand"><span aria-hidden="true">🍞</span><strong>O Pão de Cada Dia</strong><button class="modal-close" data-close aria-label="Fechar janela"><span aria-hidden="true">×</span></button></div><div class="modal-body">${html}</div>`;const heading=$("#modalContent h3");if(heading){heading.id="modalTitle";heading.tabIndex=-1;sheet.setAttribute("aria-labelledby","modalTitle");sheet.removeAttribute("aria-label")}else{sheet.removeAttribute("aria-labelledby");sheet.setAttribute("aria-label","Janela de diálogo")}modal.classList.add("open");modal.setAttribute("aria-hidden","false");app.inert=true;document.body.classList.add("modal-open");requestAnimationFrame(()=>{(heading||sheet)?.focus()})}
   function closeModal(){const modal=$("#modal");if(!modal.classList.contains("open"))return;const fallback=modalCloseAction;modalCloseAction=null;modal.classList.remove("open");modal.setAttribute("aria-hidden","true");app.inert=false;document.body.classList.remove("modal-open");const restore=modalOpener;modalOpener=null;if(fallback){requestAnimationFrame(fallback);return}if(restore?.isConnected)requestAnimationFrame(()=>restore.focus())}
-  function logout(){closeModal();state.session={mode:null,userId:null};storeCloudCredentials({});save();page="home";adminSection="dashboard";cart={};cartChoices={};adminCart={};adminCartChoices={};customRequest="";adminCustomRequest="";orderSchedule="today";announcementDismissed=false;customOpen={user:false};render()}
+  function logout(){closeModal();state.session={mode:null,userId:null};storeCloudCredentials({});save();page="home";adminSection="dashboard";cart={};cartChoices={};adminCart={};adminCartChoices={};customRequest="";adminCustomRequest="";orderSchedule="today";customOpen={user:false};render()}
   function statusText(s){return s==="paid"?"Pago":s==="debt"?"Em dívida":s==="cancelled"?"Cancelado":"Pendente"}
   function empty(emoji,text){return `<div class="empty"><div class="emoji">${emoji}</div><p>${text}</p></div>`}
   function afterBalanceReset(id,date){const reset=user(id)?.balanceResetAt;return !reset||new Date(date)>=new Date(reset)}
@@ -272,12 +271,6 @@
     if(cloudRows===null)loadCloudRanking().then(rows=>{if($(".ranking-modal"))rankingModal(rows)}).catch(()=>toast("O Hall partilhado está offline. Mostrei os dados deste aparelho."));
   }
 
-  function announcementBanner(){
-    if(announcementDismissed)return "";
-    return `<section class="announcement-banner" role="alert"><div class="announcement-badge" aria-hidden="true"><span>📢</span><small>Novas regras</small></div><div class="announcement-copy"><span class="announcement-eyebrow">Novo mambo de pedidos</span><strong>AVISO IMPORTANTE</strong><ul class="announcement-rules"><li><span aria-hidden="true">🧑🏽‍💼</span><p>O <b>admin</b> agora pode fazer pedidos por <b>utilizadores</b> e <b>convidados</b>.</p></li><li><span aria-hidden="true">⏰</span><p>Utilizadores podem agendar para <b>amanhã às 06:00</b>.</p></li><li class="announcement-blocked"><span aria-hidden="true">🚫</span><p>Só entra food com mola: <b>ninguém faz pedidos com saldo 0 MT ou insuficiente</b>. O pedido fica bloqueado até haver saldo suficiente.</p></li></ul></div><button class="announcement-close" data-dismiss-announcement aria-label="Fechar aviso">×<span>Fechar</span></button></section>`;
-  }
-  function shouldShowAnnouncement(){return state.session.mode==="user"&&page==="home"}
-
   function entryView(){
     return `<main id="main" class="entry-wrap" tabindex="-1">
       <div class="entry-logo">
@@ -286,7 +279,6 @@
         <p>Pedidos, mola mensal e fome maningue séria.</p>
         <div class="opening-phrase"><span>💬</span>${esc(openingPhrase)}</div>
       </div>
-      ${announcementBanner()}
       <div class="access-grid">
         <button class="access-card primary" data-entry="user">
           <span class="access-icon">🙂</span><span><strong>Entrar como boss da fome</strong><small>Ver a mola, mandar pedidos e acompanhar o teu food.</small></span><span class="access-arrow">›</span>
@@ -304,7 +296,7 @@
 
   function shell(title,subtitle,right,content,nav){
     return `<header class="topbar"><div class="brand"><div class="brand-icon">🍞</div><div><h1>${title}</h1><small>${subtitle}</small></div></div>${right||""}</header>
-      <main id="main" class="app-content" tabindex="-1">${shouldShowAnnouncement()?announcementBanner():""}${content}</main>${nav||""}`;
+      <main id="main" class="app-content" tabindex="-1">${content}</main>${nav||""}`;
   }
 
   function userNav(){
@@ -654,7 +646,6 @@
       return;
     }
     if(e.target.closest("#openRanking")){rankingModal();return}
-    if(e.target.closest("[data-dismiss-announcement]")){announcementDismissed=true;$$('.announcement-banner').forEach(banner=>{banner.hidden=true});return}
     if(e.target.closest("[data-close]")){closeModal();return}
     if(e.target.closest("[data-logout]")){logout();return}
 
@@ -814,7 +805,7 @@
   async function refreshOperationalState(){if(cloudRefreshBusy||document.hidden)return;cloudRefreshBusy=true;try{let refreshed=false;if(state.session.mode==="user"&&cloudCredentials.userPin){const sessionStatus=await userSessionStatus(state.session.userId,cloudCredentials.userPin);if(sessionStatus==="blocked"){logout();toast("A tua conta foi bloqueada pelo administrador.");return}if(sessionStatus!=="ok")return;await syncUserOperational(state.session.userId,cloudCredentials.userPin);refreshed=await hydrateUserOperational(state.session.userId,cloudCredentials.userPin)}else if(state.session.mode==="admin"&&cloudCredentials.adminPin){await syncAdminOperational();refreshed=await hydrateAdminOperational()}else{refreshed=await hydratePublicBootstrap()}if(refreshed&&!$("#modal").classList.contains("open"))render()}finally{cloudRefreshBusy=false}}
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)void refreshOperationalState()});
   setInterval(refreshOperationalState,20000);
-  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=69").catch(()=>{});}
+  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=70").catch(()=>{});}
   render();
   hydratePublicBootstrap().then(ok=>{if(ok&&!state.session.mode)render()});
 })();
