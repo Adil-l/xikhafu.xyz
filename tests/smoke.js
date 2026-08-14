@@ -14,7 +14,7 @@ const chromePath = process.env.CHROME_PATH || "/Applications/Google Chrome.app/C
   await page.route("**/rest/v1/rpc/**", async route => {
     const functionName = new URL(route.request().url()).pathname.split("/").pop();
     const emptyAdminState = { users: [], products: [], orders: [], recharges: [], donations: [], settings: { balancePolicy: "allow-negative" } };
-    const body = functionName === "load_admin_operational_state" ? emptyAdminState : functionName === "load_public_app_bootstrap" ? { users: [], products: [], settings: { balancePolicy: "allow-negative" } } : functionName === "admin_pin_states" ? [] : functionName === "user_pin_status" ? "active" : functionName === "verify_user_pin" ? "ok" : {};
+    const body = functionName === "load_admin_operational_state" ? emptyAdminState : functionName === "load_public_app_bootstrap" ? { users: [], products: [], settings: { balancePolicy: "allow-negative" } } : functionName === "admin_pin_states" ? [] : functionName === "user_pin_status" ? "active" : functionName === "verify_user_pin" ? "ok" : functionName === "admin_add_recharge" ? { ok: true, id: 901, date: new Date().toISOString() } : {};
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
   });
   await page.goto(baseURL, { waitUntil: "networkidle" });
@@ -28,6 +28,14 @@ const chromePath = process.env.CHROME_PATH || "/Applications/Google Chrome.app/C
   await page.locator("#adminPin").fill("1234");
   await page.locator("#confirmAdminLogin").click();
   await page.getByText("Painel Administrativo").waitFor();
+  await page.getByRole("button", { name: "Gestão" }).click();
+  await page.locator("#adminRecharge").click();
+  await page.locator("#rechargeAmount").fill("25");
+  await page.locator("#saveRecharge").click();
+  await page.locator("#modal").waitFor({ state: "hidden" });
+  const syncedRecharge = await page.evaluate(() => JSON.parse(localStorage.getItem("paoCadaDiaUnifiedV3")).recharges.find(recharge => recharge.amount === 25));
+  assert.ok(syncedRecharge, "A recarga administrativa não foi guardada");
+  assert.equal(syncedRecharge.pendingSync, false, "A recarga administrativa não foi sincronizada pela RPC dedicada");
   await page.getByRole("button", { name: "Pedidos" }).click();
   await page.locator("#newAdminOrder").click();
   assert.equal(await page.locator("#adminOrderType").count(), 1, "O formulário de pedido administrativo não abriu");

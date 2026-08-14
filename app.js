@@ -184,6 +184,8 @@
   }
   async function syncAdminOperational(){
     if(!cloudCredentials.adminPin)return false;ensureOperationalKeys();
+    const pendingRecharges=(state.recharges||[]).filter(recharge=>recharge.pendingSync);
+    if(pendingRecharges.length)await Promise.allSettled(pendingRecharges.map(submitAdminRecharge));
     const payload={settings:{...operationalSettingsPayload(),updatedAt:state.settings.updatedAt||state.settings.cloudOperationalUpdatedAt||new Date(0).toISOString()},users:state.users.filter(u=>!u.legacyHidden).map(u=>({user_id:Number(u.id),monthly_balance:Number(u.monthlyBalance||0),balance_reset_at:u.balanceResetAt||null,active:Boolean(u.active),updated_at:u.updatedAt||u.cloudUpdatedAt||new Date(0).toISOString()})),orders:state.orders.map(operationalOrderPayload),recharges:(state.recharges||[]).map(r=>({sync_key:stableSyncKey("recharge",r),user_id:Number(r.userId),created_at:r.date,amount:Number(r.amount||0),note:r.note||"Recarga",updated_at:r.updatedAt||r.date})),donations:(state.donationPledges||[]).map(operationalDonationPayload)};
     try{return await cloudRpc("admin_sync_operational_state",{p_admin_pin:cloudCredentials.adminPin,payload})}catch{return false}
   }
@@ -195,6 +197,7 @@
     try{let cloud=await cloudRpc("load_admin_operational_state",{p_admin_pin:pin});if(!cloud)return false;ensureOperationalKeys();const localOrders=state.orders.slice(),localRecharges=state.recharges.slice(),localDonations=state.donationPledges.slice();(cloud.users||[]).forEach(mergeCloudUser);mergeCloudSettings(cloud.settings);state.orders=mergeOperationalRows(localOrders,cloud.orders||[]);state.recharges=mergeOperationalRows(localRecharges,cloud.recharges||[]);state.donationPledges=mergeOperationalRows(localDonations,cloud.donations||[]);ensureOperationalKeys();save();return true}catch{return false}
   }
   async function submitUserOperational(order){try{const result=await cloudRpc("submit_user_order",{p_user_id:Number(order.userId),p_pin:cloudCredentials.userPin,payload:{syncKey:order.syncKey,date:order.date,items:order.items||[],customRequest:order.customRequest||"",needsContact:Boolean(order.needsContact)}});if(!result?.ok)return result||false;order.id=Number(result.id);order.status=result.status||order.status;order.pendingSync=false;order.updatedAt=new Date().toISOString();save();return result}catch{return false}}
+  async function submitAdminRecharge(recharge){try{const result=await cloudRpc("admin_add_recharge",{p_admin_pin:cloudCredentials.adminPin,payload:{syncKey:recharge.syncKey,userId:Number(recharge.userId),amount:Number(recharge.amount),note:recharge.note||"Recarga"}});if(!result?.ok)return result||false;recharge.id=Number(result.id)||recharge.id;recharge.date=result.date||recharge.date;recharge.updatedAt=new Date().toISOString();recharge.pendingSync=false;save();return result}catch{return false}}
   async function userSessionStatus(id,pin){try{return await cloudRpc("user_session_status",{p_user_id:Number(id),p_pin:pin})}catch{return null}}
   function toast(text){const e=$("#toast");e.textContent="";requestAnimationFrame(()=>{e.textContent=text;e.classList.add("show")});clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),3600)}
   function openModal(html,onClose=null){const modal=$("#modal"),sheet=$(".sheet"),wasOpen=modal.classList.contains("open");if(!wasOpen)modalOpener=document.activeElement;modalCloseAction=onClose;$("#modalContent").innerHTML=`<div class="modal-brand"><span aria-hidden="true">🍞</span><strong>O Pão de Cada Dia</strong><button class="modal-close" data-close aria-label="Fechar janela"><span aria-hidden="true">×</span></button></div><div class="modal-body">${html}</div>`;const heading=$("#modalContent h3");if(heading){heading.id="modalTitle";heading.tabIndex=-1;sheet.setAttribute("aria-labelledby","modalTitle");sheet.removeAttribute("aria-label")}else{sheet.removeAttribute("aria-labelledby");sheet.setAttribute("aria-label","Janela de diálogo")}modal.classList.add("open");modal.setAttribute("aria-hidden","false");app.inert=true;document.body.classList.add("modal-open");requestAnimationFrame(()=>{(heading||sheet)?.focus()})}
@@ -757,23 +760,12 @@
     if(e.target.id==="saveRecharge"){
       const amount=Number($("#rechargeAmount").value),uid=Number($("#rechargeUser").value),note=$("#rechargeNote").value.trim()||"Recarga";
       if(amount<=0){toast("Mete uma mola válida, boss.");return}
-      const recharge={id:Date.now(),userId:uid,date:new Date().toISOString(),amount,note};
+      const recharge={id:Date.now(),userId:uid,date:new Date().toISOString(),amount,note,pendingSync:true};
       recharge.syncKey=stableSyncKey("recharge",recharge);
       state.recharges.unshift(recharge);
       save();
-      try{
-        const synced = await syncAdminOperational();
-        if(synced){
-          toast("Mola adicionada e sincronizada em todos os dispositivos. Está nice!");
-          console.log("[debug] syncAdminOperational succeeded for recharge:", {recharge});
-        } else {
-          toast("Mola adicionada localmente, mas falha na sincronização. Ver console para detalhes.");
-          console.error("[debug] syncAdminOperational returned false for recharge:", {recharge});
-        }
-      }catch(err){
-        toast("Erro ao sincronizar a recarga. Ver console para detalhes.");
-        console.error("[debug] syncAdminOperational threw for recharge:", err, {recharge});
-      }
+      const synced=await submitAdminRecharge(recharge);
+      toast(synced?.ok?"Mola adicionada e sincronizada em todos os dispositivos. Está nice!":"Mola guardada neste aparelho. A sincronização será repetida automaticamente.");
       closeModal();render();return;
     }
     if(e.target.id==="resetDemo"){resetSystemConfirmModal();return}
@@ -805,7 +797,7 @@
   async function refreshOperationalState(){if(cloudRefreshBusy||document.hidden)return;cloudRefreshBusy=true;try{let refreshed=false;if(state.session.mode==="user"&&cloudCredentials.userPin){const sessionStatus=await userSessionStatus(state.session.userId,cloudCredentials.userPin);if(sessionStatus==="blocked"){logout();toast("A tua conta foi bloqueada pelo administrador.");return}if(sessionStatus!=="ok")return;await syncUserOperational(state.session.userId,cloudCredentials.userPin);refreshed=await hydrateUserOperational(state.session.userId,cloudCredentials.userPin)}else if(state.session.mode==="admin"&&cloudCredentials.adminPin){await syncAdminOperational();refreshed=await hydrateAdminOperational()}else{refreshed=await hydratePublicBootstrap()}if(refreshed&&!$("#modal").classList.contains("open"))render()}finally{cloudRefreshBusy=false}}
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)void refreshOperationalState()});
   setInterval(refreshOperationalState,20000);
-  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=70").catch(()=>{});}
+  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=71").catch(()=>{});}
   render();
   hydratePublicBootstrap().then(ok=>{if(ok&&!state.session.mode)render()});
 })();
