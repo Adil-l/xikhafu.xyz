@@ -272,7 +272,11 @@
     if(cloudRows===null)loadCloudRanking().then(rows=>{if($(".ranking-modal"))rankingModal(rows)}).catch(()=>toast("O Hall partilhado está offline. Mostrei os dados deste aparelho."));
   }
 
-  function announcementBanner(){if(announcementDismissed)return "";return `<section class="announcement-banner" role="alert"><div class="announcement-icon" aria-hidden="true">📢</div><div class="announcement-copy"><strong>AVISO IMPORTANTE — NOVAS REGRAS</strong><p>Agora o admin pode fazer pedidos por utilizadores e convidados. Utilizadores podem agendar para amanhã às <b>06:00</b>.</p><p class="announcement-balance">🚫 <b>Ninguém faz pedidos com saldo 0 MT ou insuficiente.</b> O pedido fica bloqueado até haver saldo suficiente.</p></div><button class="announcement-close" data-dismiss-announcement aria-label="Fechar aviso">×<span>Fechar</span></button></section>`}
+  function announcementBanner(){
+    if(announcementDismissed)return "";
+    return `<section class="announcement-banner" role="alert"><div class="announcement-badge" aria-hidden="true"><span>📢</span><small>Novas regras</small></div><div class="announcement-copy"><span class="announcement-eyebrow">Novo mambo de pedidos</span><strong>AVISO IMPORTANTE</strong><ul class="announcement-rules"><li><span aria-hidden="true">🧑🏽‍💼</span><p>O <b>admin</b> agora pode fazer pedidos por <b>utilizadores</b> e <b>convidados</b>.</p></li><li><span aria-hidden="true">⏰</span><p>Utilizadores podem agendar para <b>amanhã às 06:00</b>.</p></li><li class="announcement-blocked"><span aria-hidden="true">🚫</span><p>Só entra food com mola: <b>ninguém faz pedidos com saldo 0 MT ou insuficiente</b>. O pedido fica bloqueado até haver saldo suficiente.</p></li></ul></div><button class="announcement-close" data-dismiss-announcement aria-label="Fechar aviso">×<span>Fechar</span></button></section>`;
+  }
+  function shouldShowAnnouncement(){return state.session.mode==="user"&&page==="home"}
 
   function entryView(){
     return `<main id="main" class="entry-wrap" tabindex="-1">
@@ -300,7 +304,7 @@
 
   function shell(title,subtitle,right,content,nav){
     return `<header class="topbar"><div class="brand"><div class="brand-icon">🍞</div><div><h1>${title}</h1><small>${subtitle}</small></div></div>${right||""}</header>
-      <main id="main" class="app-content" tabindex="-1">${announcementBanner()}${content}</main>${nav||""}`;
+      <main id="main" class="app-content" tabindex="-1">${shouldShowAnnouncement()?announcementBanner():""}${content}</main>${nav||""}`;
   }
 
   function userNav(){
@@ -762,7 +766,24 @@
     if(e.target.id==="saveRecharge"){
       const amount=Number($("#rechargeAmount").value),uid=Number($("#rechargeUser").value),note=$("#rechargeNote").value.trim()||"Recarga";
       if(amount<=0){toast("Mete uma mola válida, boss.");return}
-      const recharge={id:Date.now(),userId:uid,date:new Date().toISOString(),amount,note};recharge.syncKey=stableSyncKey("recharge",recharge);state.recharges.unshift(recharge);save();await syncAdminOperational();closeModal();render();toast("Mola adicionada em todos os dispositivos. Está nice!");return;
+      const recharge={id:Date.now(),userId:uid,date:new Date().toISOString(),amount,note};
+      recharge.syncKey=stableSyncKey("recharge",recharge);
+      state.recharges.unshift(recharge);
+      save();
+      try{
+        const synced = await syncAdminOperational();
+        if(synced){
+          toast("Mola adicionada e sincronizada em todos os dispositivos. Está nice!");
+          console.log("[debug] syncAdminOperational succeeded for recharge:", {recharge});
+        } else {
+          toast("Mola adicionada localmente, mas falha na sincronização. Ver console para detalhes.");
+          console.error("[debug] syncAdminOperational returned false for recharge:", {recharge});
+        }
+      }catch(err){
+        toast("Erro ao sincronizar a recarga. Ver console para detalhes.");
+        console.error("[debug] syncAdminOperational threw for recharge:", err, {recharge});
+      }
+      closeModal();render();return;
     }
     if(e.target.id==="resetDemo"){resetSystemConfirmModal();return}
     if(e.target.id==="confirmSystemReset"){closeModal();reset();toast("Dados locais limpos. Os dados partilhados no Supabase foram preservados. ♻️");return}
@@ -793,7 +814,7 @@
   async function refreshOperationalState(){if(cloudRefreshBusy||document.hidden)return;cloudRefreshBusy=true;try{let refreshed=false;if(state.session.mode==="user"&&cloudCredentials.userPin){const sessionStatus=await userSessionStatus(state.session.userId,cloudCredentials.userPin);if(sessionStatus==="blocked"){logout();toast("A tua conta foi bloqueada pelo administrador.");return}if(sessionStatus!=="ok")return;await syncUserOperational(state.session.userId,cloudCredentials.userPin);refreshed=await hydrateUserOperational(state.session.userId,cloudCredentials.userPin)}else if(state.session.mode==="admin"&&cloudCredentials.adminPin){await syncAdminOperational();refreshed=await hydrateAdminOperational()}else{refreshed=await hydratePublicBootstrap()}if(refreshed&&!$("#modal").classList.contains("open"))render()}finally{cloudRefreshBusy=false}}
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)void refreshOperationalState()});
   setInterval(refreshOperationalState,20000);
-  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=68").catch(()=>{});}
+  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=69").catch(()=>{});}
   render();
   hydratePublicBootstrap().then(ok=>{if(ok&&!state.session.mode)render()});
 })();
