@@ -284,7 +284,7 @@
       </div>
       ${announcementBanner()}
       <div class="access-grid">
-        <button class="access-card" data-entry="user">
+        <button class="access-card primary" data-entry="user">
           <span class="access-icon">🙂</span><span><strong>Entrar como boss da fome</strong><small>Ver a mola, mandar pedidos e acompanhar o teu food.</small></span><span class="access-arrow">›</span>
         </button>
         <button class="access-card admin" data-entry="admin">
@@ -311,7 +311,7 @@
   function userView(){
     const u=activeUser();
     const content = page==="home"?userHome(u):page==="menu"?userMenu(u):page==="orders"?userOrders(u):page==="balance"?userBalance(u):userProfile(u);
-    return shell("O Pão de Cada Dia",`${esc(u.name)} • ${monthName}`,`<button class="icon-btn" data-logout title="Sair" aria-label="Terminar sessão">↩️</button>`,content,userNav());
+    return shell("O Pão de Cada Dia",`${esc(u.name)} • ${monthName}`,`<button class="icon-btn logout-btn" data-logout title="Sair" aria-label="Terminar sessão"><span aria-hidden="true">↩️</span><span class="logout-label">Sair</span></button>`,content,userNav());
   }
 
   function userHome(u){
@@ -404,7 +404,7 @@
   }
   function adminView(){
     const content=adminSection==="dashboard"?adminDashboard():adminSection==="orders"?adminOrders():adminSection==="products"?adminProducts():adminSection==="users"?adminUsers():adminSettings();
-    return shell("Painel Administrativo",`Gestão • ${monthName}`,`<button class="icon-btn" data-logout title="Sair" aria-label="Terminar sessão administrativa">↩️</button>`,content,adminNav());
+    return shell("Painel Administrativo",`Gestão • ${monthName}`,`<button class="icon-btn logout-btn" data-logout title="Sair" aria-label="Terminar sessão administrativa"><span aria-hidden="true">↩️</span><span class="logout-label">Sair</span></button>`,content,adminNav());
   }
   function adminDashboard(){
     const month=state.orders.filter(o=>isThisMonth(o.date)&&o.status!=="cancelled");
@@ -420,7 +420,9 @@
   }
   function adminOrderRow(o,canDelete=false){
     const owner=orderOwner(o);
-    const row=`<button class="order order-button" data-admin-order="${o.id}" aria-label="Abrir pedido ${o.id} de ${esc(owner.name)}"><div class="face">${esc(owner.avatar)}</div><div><strong>${esc(owner.name)}</strong><small>${orderDateLabel(o.date)} • ${itemSummary(o)} ${o.type==="guest"?"• sem cadastro":""}</small></div><div class="side"><b>${orderTotalLabel(o)}</b><span class="status ${o.type==="guest"?"guest-tag":o.status}">${o.type==="guest"?"Convidado":statusText(o.status)}</span><span class="status ${o.status}">${statusText(o.status)}</span></div></button>`;
+    const tagClass=o.type==="guest"?"guest-tag":o.status;
+    const tagText=o.type==="guest"?"Convidado":statusText(o.status);
+    const row=`<button class="order order-button" data-admin-order="${o.id}" aria-label="Abrir pedido ${o.id} de ${esc(owner.name)}"><div class="face">${esc(owner.avatar)}</div><div><strong>${esc(owner.name)}</strong><small>${orderDateLabel(o.date)} • ${itemSummary(o)} ${o.type==="guest"?"• sem cadastro":""}</small></div><div class="side"><b>${orderTotalLabel(o)}</b><span class="status ${tagClass}">${tagText}</span></div></button>`;
     return canDelete?`<div class="admin-order-row">${row}<button class="mini-btn delete" data-delete-order="${esc(o.id)}" aria-label="Eliminar pedido ${o.id}">🗑️</button></div>`:row;
   }
   function adminOrders(){
