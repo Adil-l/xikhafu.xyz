@@ -46,6 +46,8 @@ const chromePath = process.env.CHROME_PATH || "/Applications/Google Chrome.app/C
   await page.locator("#saveAdminOrder").click();
   await page.getByText("Mokizzow").waitFor();
   await page.getByRole("button", { name: "Utilizadores" }).click();
+  const dilmaRow = page.locator(".manage-row").filter({ hasText: "Dilma Lineco" });
+  await dilmaRow.getByText(/Saldo: 0 MT/).waitFor();
   const adilsonRow = page.locator(".manage-row").filter({ hasText: "Adilson Gavumende" });
   await adilsonRow.getByRole("button", { name: "Editar" }).click();
   await page.locator("#userBalance").fill("100");

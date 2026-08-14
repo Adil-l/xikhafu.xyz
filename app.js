@@ -20,7 +20,7 @@
     {id:1,name:"Adilson Gavumende",avatar:"👨🏽‍💻",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
     {id:8,name:"Daniel Jacinto",avatar:"🐯",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
     {id:11,name:"Deolinda Nguenha",avatar:"🌻",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
-    {id:15,name:"Dilma Lineco",avatar:"🌺",pin:"",pinConfigured:false,monthlyBalance:-72,active:true},
+    {id:15,name:"Dilma Lineco",avatar:"🌺",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
     {id:9,name:"Edson Mangaho",avatar:"😎",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
     {id:16,name:"Edson Vasconcelos",avatar:"🧑🏽‍💼",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
     {id:7,name:"Elias Bernado",avatar:"🦅",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
@@ -41,7 +41,6 @@
     {id:12,name:"Bolos",icon:"🍰",price:0,category:"Doces",active:true,contactForFlavor:true},
   ];
   const monthName = new Intl.DateTimeFormat("pt-PT",{month:"long",year:"numeric"}).format(new Date());
-  const BALANCE_TARGETS = new Map([[15,-72]]);
   const seed = {
     settings:{balancePolicy:"block"},
     users:USER_ROSTER.map(u=>({...u})),
@@ -210,7 +209,6 @@
   function userRecharge(id){return state.recharges.filter(r=>r.userId===Number(id)&&isThisMonth(r.date)&&afterBalanceReset(id,r.date)).reduce((s,r)=>s+r.amount,0)}
   function userDonation(id){return (state.donationPledges||[]).filter(p=>p.userId===Number(id)&&isThisMonth(p.date)&&afterBalanceReset(id,p.date)).reduce((s,p)=>s+Number(p.amount||0),0)}
   function userAvailable(id){const u=user(id);return u.monthlyBalance+userRecharge(id)-userSpent(id)-userDonation(id)}
-  function normalizeTargetBalances(){BALANCE_TARGETS.forEach((target,id)=>{const u=user(id);if(u)u.monthlyBalance=target-userRecharge(id)+userSpent(id)+userDonation(id)})}
   function userOrdersAll(id){return state.orders.filter(o=>o.type==="user"&&o.userId===Number(id)&&o.status!=="cancelled")}
   function userItemQty(id,test){return userOrdersAll(id).reduce((sum,o)=>sum+o.items.reduce((total,item)=>{const p=product(item.productId);return total+(p&&test(p)?Number(item.qty):0)},0),0)}
   function userAllSpent(id){return userOrdersAll(id).reduce((sum,o)=>sum+orderTotal(o),0)}
@@ -536,7 +534,6 @@
   }
 
   function render(){
-    normalizeTargetBalances();
     app.classList.toggle("admin-shell",state.session.mode==="admin");app.dataset.mode=state.session.mode||"entry";
     if(!state.session.mode)app.innerHTML=entryView();
     else if(state.session.mode==="user")app.innerHTML=userView();
@@ -797,7 +794,7 @@
   async function refreshOperationalState(){if(cloudRefreshBusy||document.hidden)return;cloudRefreshBusy=true;try{let refreshed=false;if(state.session.mode==="user"&&cloudCredentials.userPin){const sessionStatus=await userSessionStatus(state.session.userId,cloudCredentials.userPin);if(sessionStatus==="blocked"){logout();toast("A tua conta foi bloqueada pelo administrador.");return}if(sessionStatus!=="ok")return;await syncUserOperational(state.session.userId,cloudCredentials.userPin);refreshed=await hydrateUserOperational(state.session.userId,cloudCredentials.userPin)}else if(state.session.mode==="admin"&&cloudCredentials.adminPin){await syncAdminOperational();refreshed=await hydrateAdminOperational()}else{refreshed=await hydratePublicBootstrap()}if(refreshed&&!$("#modal").classList.contains("open"))render()}finally{cloudRefreshBusy=false}}
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)void refreshOperationalState()});
   setInterval(refreshOperationalState,20000);
-  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=71").catch(()=>{});}
+  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=72").catch(()=>{});}
   render();
   hydratePublicBootstrap().then(ok=>{if(ok&&!state.session.mode)render()});
 })();
