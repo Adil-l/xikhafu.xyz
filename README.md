@@ -4,11 +4,11 @@ Aplicação mobile-first para pedidos de comida, gestão de saldos e recibos di�
 
 ## Experiências
 
-- **Utilizador:** cria o PIN no primeiro acesso, consulta o saldo, faz pedidos e acompanha o histórico.
-- **Administrador:** gere pedidos, preços personalizados, produtos, utilizadores, recargas e recibos diários em PDF.
-- **Convidado:** faz pedidos rápidos sem cadastro e pode contribuir para a campanha do padeiro.
+- **Utilizador:** cria o PIN no primeiro acesso, consulta o saldo, faz pedidos apenas quando tem saldo suficiente e acompanha o histórico.
+- **Administrador:** gere pedidos, preços personalizados, produtos, utilizadores, recargas e recibos diários em PDF. Também pode registar pedidos em nome de utilizadores cadastrados ou convidados.
+- **Convidado:** não faz pedidos diretamente; o administrador regista o pedido em seu nome.
 
-O sistema também inclui modo especial de sexta-feira, cardápio com opções, Hall da Fome e mensagens em português moçambicano.
+O sistema também inclui cardápio com opções, Hall da Fome e mensagens em português moçambicano.
 
 ## Acesso administrativo
 
@@ -26,7 +26,7 @@ Depois abra [http://127.0.0.1:8080](http://127.0.0.1:8080).
 
 O Supabase centraliza os PINs, saldos, dívidas, pedidos, recargas, contribuições, históricos e os dados agregados do Hall da Fome. Um PIN solicitado no primeiro dispositivo fica pendente até aprovação do administrador e, depois disso, funciona nos restantes dispositivos sem poder ser redefinido pelo utilizador.
 
-O navegador mantém uma cópia rápida dos dados para a interface, mas o Supabase é a fonte partilhada entre aparelhos. Novos pedidos são validados transacionalmente no servidor quando há ligação; sem ligação ficam pendentes no aparelho e são reenviados automaticamente. Alterações administrativas usam chaves estáveis e versão de atualização para evitar que um aparelho antigo reverta outro.
+O navegador mantém uma cópia rápida dos dados para a interface, mas o Supabase é a fonte partilhada entre aparelhos. Novos pedidos são validados transacionalmente no servidor quando há ligação; pedidos criados pelo administrador ficam no aparelho e são sincronizados quando a ligação estiver disponível. Alterações administrativas usam chaves estáveis e versão de atualização para evitar que um aparelho antigo reverta outro.
 
 ## Testes
 

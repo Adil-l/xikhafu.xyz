@@ -7,9 +7,8 @@
   const DEVICE_KEY = `${KEY}:deviceId`;
   const SUPABASE_URL = "https://ybuibskdiynfoubqrczt.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlidWlic2tkaXluZm91YnFyY3p0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyOTU3MzAsImV4cCI6MjA5MTg3MTczMH0.9-F3RNTh-XA-wRu4aMGWlIrRzQMIthkVNgE8fWmS1hQ";
-  const DONATION_NUMBER = "876760317";
   const RECHARGE_NUMBER = "876760317";
-  const REMOVED_PRODUCT_IDS = new Set([7,8]);
+  const REMOVED_PRODUCT_IDS = new Set([3,4,7,8,9,10,11,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]);
   const OPENING_PHRASES = [
     "O estômago já enviou três notificações.",
     "O padeiro está a observar...",
@@ -21,7 +20,7 @@
     {id:1,name:"Adilson Gavumende",avatar:"👨🏽‍💻",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
     {id:8,name:"Daniel Jacinto",avatar:"🐯",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
     {id:11,name:"Deolinda Nguenha",avatar:"🌻",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
-    {id:15,name:"Dilma Lineco",avatar:"🌺",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
+    {id:15,name:"Dilma Lineco",avatar:"🌺",pin:"",pinConfigured:false,monthlyBalance:-72,active:true},
     {id:9,name:"Edson Mangaho",avatar:"😎",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
     {id:16,name:"Edson Vasconcelos",avatar:"🧑🏽‍💼",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
     {id:7,name:"Elias Bernado",avatar:"🦅",pin:"",pinConfigured:false,monthlyBalance:0,active:true},
@@ -35,40 +34,16 @@
     {id:14,name:"Wesley Ussene",avatar:"⚡",pin:"",pinConfigured:false,monthlyBalance:0,active:true}
   ];
   const MENU_PRODUCTS = [
-    {id:1,name:"Bread",icon:"🥖",price:12,category:"Breads",active:true,fridayOnly:false,options:[{key:"preco",label:"Escolhe o preço",choices:[{label:"12 MT",price:12},{label:"14 MT",price:14}]}]},
-    {id:2,name:"Badjia",icon:"🥟",price:2,category:"Salgados",active:true,fridayOnly:false,options:[{key:"piri",label:"Piri-piri",choices:[{label:"Sem piri-piri"},{label:"Com piri-piri"}]}]},
-    {id:5,name:"Chamuça",icon:"🔺",price:5,category:"Salgados",active:true,fridayOnly:false,options:[{key:"preco",label:"Escolhe o preço",choices:[{label:"5 MT",price:5},{label:"10 MT",price:10}]},{key:"piri",label:"Piri-piri",choices:[{label:"Sem piri-piri"},{label:"Com piri-piri"}]}]},
-    {id:6,name:"Rissol",icon:"🥐",price:10,category:"Salgados",active:true,fridayOnly:false,options:[{key:"piri",label:"Piri-piri",choices:[{label:"Sem piri-piri"},{label:"Com piri-piri"}]}]},
-    {id:9,name:"Maçã",icon:"🍎",price:20,category:"Frutas",active:true,fridayOnly:false,options:[{key:"cor",label:"Escolhe a maçã",choices:[{label:"Verde"},{label:"Vermelha"}]}]},
-    {id:10,name:"Laranja",icon:"🍊",price:20,category:"Frutas",active:true,fridayOnly:false},
-    {id:11,name:"Bolachas",icon:"🍪",price:0,category:"Doces",active:true,fridayOnly:false,contactForFlavor:true},
-    {id:12,name:"Bolos",icon:"🍰",price:0,category:"Doces",active:true,fridayOnly:false,contactForFlavor:true},
-    {id:3,name:"Coca-Cola",icon:"🥤",price:0,category:"Refrescos",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:4,name:"Fanta",icon:"🧃",price:0,category:"Refrescos",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:13,name:"Sprite",icon:"🥤",price:0,category:"Refrescos",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:14,name:"Simba",icon:"🍟",price:0,category:"Snacks",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:15,name:"Doritos",icon:"🔻",price:0,category:"Snacks",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:16,name:"Cappy",icon:"🧃",price:0,category:"Sumos",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:17,name:"Ceres",icon:"🧃",price:0,category:"Sumos",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:18,name:"Compal",icon:"🧃",price:0,category:"Sumos",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:19,name:"Switch",icon:"⚡",price:0,category:"Energéticos",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:20,name:"Red Bull",icon:"⚡",price:0,category:"Energéticos",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:21,name:"Predator",icon:"⚡",price:0,category:"Energéticos",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:22,name:"Nasty",icon:"⚡",price:0,category:"Energéticos",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:23,name:"Monster",icon:"👹",price:0,category:"Energéticos",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:24,name:"Coronita",icon:"🍺",price:0,category:"Bebidas",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:25,name:"2M lata",icon:"🍺",price:0,category:"Bebidas",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:26,name:"Mayfair",icon:"🍺",price:0,category:"Bebidas",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:27,name:"Heineken",icon:"🍺",price:0,category:"Bebidas",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:28,name:"Pretinha",icon:"🍺",price:0,category:"Bebidas",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:29,name:"Hunters Gold",icon:"🍺",price:0,category:"Bebidas",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:30,name:"Txilar",icon:"🍺",price:0,category:"Bebidas",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:31,name:"Lite",icon:"🍺",price:0,category:"Bebidas",active:true,fridayOnly:true,contactForFlavor:true},
-    {id:32,name:"Flying Fish",icon:"🍺",price:0,category:"Bebidas",active:true,fridayOnly:true,contactForFlavor:true}
+    {id:1,name:"Bread",icon:"🥖",price:16,category:"Breads",active:true,options:[]},
+    {id:2,name:"Badjia",icon:"🥟",price:3,category:"Salgados",active:true,options:[{key:"piri",label:"Piri-piri",choices:[{label:"Sem piri-piri"},{label:"Com piri-piri"}]}]},
+    {id:5,name:"Chamuça",icon:"🔺",price:12,category:"Salgados",active:true,options:[{key:"piri",label:"Piri-piri",choices:[{label:"Sem piri-piri"},{label:"Com piri-piri"}]}]},
+    {id:6,name:"Rissol",icon:"🥐",price:12,category:"Salgados",active:true,options:[{key:"piri",label:"Piri-piri",choices:[{label:"Sem piri-piri"},{label:"Com piri-piri"}]}]},
+    {id:12,name:"Bolos",icon:"🍰",price:0,category:"Doces",active:true,contactForFlavor:true},
   ];
   const monthName = new Intl.DateTimeFormat("pt-PT",{month:"long",year:"numeric"}).format(new Date());
+  const BALANCE_TARGETS = new Map([[15,-72]]);
   const seed = {
-    settings:{guestOrdering:true,balancePolicy:"allow-negative",donationDay:5,donationGoal:"o primeiro carro do padeiro (ou pelo menos um Yango 😅)"},
+    settings:{balancePolicy:"block"},
     users:USER_ROSTER.map(u=>({...u})),
     products:MENU_PRODUCTS.map(p=>structuredClone(p)),
     orders:[],
@@ -94,24 +69,25 @@
   state.session = loadSession(state.session);
   save();
   let cloudCredentials = loadCloudCredentials();
-  if(state.session.mode==="user"||state.session.mode==="admin"){state.session={mode:null,userId:null};save()}
+  if(!["user","admin"].includes(state.session.mode)){state.session={mode:null,userId:null};save()}
   const cloudPinStates = new Map();
   const deviceId = loadDeviceId();
   ensureOperationalKeys();
   save();
   let page = "home";
   let cart = {};
-  let guestCart = {};
   let cartChoices = {};
-  let guestCartChoices = {};
   let customRequest = "";
-  let guestCustomRequest = "";
-  let customOpen = {user:false,guest:false};
+  let adminCart = {};
+  let adminCartChoices = {};
+  let adminCustomRequest = "";
+  let customOpen = {user:false};
   let category = "Todos";
   let orderFilter = "Todos";
   let adminOrderDate = "";
   let adminSection = "dashboard";
-  let donationTimer;
+  let announcementDismissed = false;
+  let orderSchedule = "today";
   let modalOpener = null;
   let modalCloseAction = null;
 
@@ -121,8 +97,7 @@
   const fmt = n => new Intl.NumberFormat("pt-PT").format(Math.round(n));
   const esc = value => String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[char]));
   const byName = (a,b) => a.name.localeCompare(b.name,"pt",{sensitivity:"base"});
-  const isFridayMode = (date=new Date()) => date.getDay()===5;
-  const canOrderProduct = p => Boolean(p?.active&&(!p.fridayOnly||isFridayMode()));
+  const canOrderProduct = p => Boolean(p?.active);
   const isThisMonth = d => {const x=new Date(d),n=new Date();return x.getMonth()===n.getMonth()&&x.getFullYear()===n.getFullYear()};
   const today = d => new Date(d).toDateString() === new Date().toDateString();
   const product = id => state.products.find(p=>p.id===Number(id));
@@ -140,7 +115,9 @@
     const accountsReset=Number(data.settings?.accountsResetVersion||0)>=1;
     const cleanSlateUpdated=Number(data.settings?.cleanSlateVersion||0)>=1;
     const cloudPinUpdated=Number(data.settings?.cloudPinVersion||0)>=1;
-    data.settings={...seed.settings,...(data.settings||{})};
+    data.settings={...seed.settings,...(data.settings||{}),balancePolicy:"block"};
+    delete data.settings.donationDay;
+    delete data.settings.donationGoal;
     delete data.settings.adminPin;
     if(!rosterUpdated){
       const existing=data.users||[],rosterIds=new Set(USER_ROSTER.map(u=>Number(u.id)));
@@ -164,7 +141,7 @@
     if(!cloudPinUpdated){data.users=(data.users||[]).map(u=>({...u,pin:"",pinConfigured:false}));data.session={mode:null,userId:null};data.settings.cloudPinVersion=1}
     const productIds=new Set(),productNames=new Set();
     data.products=(data.products||[]).filter(p=>{const id=Number(p.id),name=String(p.name||"").trim().toLocaleLowerCase("pt");if(REMOVED_PRODUCT_IDS.has(id)||productIds.has(id)||productNames.has(name))return false;productIds.add(id);productNames.add(name);return true});
-    data.products=data.products.map(p=>Number(p.id)===1?{...p,name:"Bread",category:"Breads",fridayOnly:false}:{...p,fridayOnly:p.fridayOnly??[3,4].includes(Number(p.id))});
+    data.products=data.products.map(p=>Number(p.id)===1?{...p,name:"Bread",category:"Breads",price:16,options:[]}:Number(p.id)===2?{...p,name:"Badjia",price:3}:Number(p.id)===5?{...p,name:"Chamuça",price:12,options:(p.options||[]).filter(group=>group.key!=="preco")}:Number(p.id)===6?{...p,name:"Rissol",price:12}:p);
     data.orders=(data.orders||[]).map(o=>({...o,items:(o.items||[]).filter(i=>!REMOVED_PRODUCT_IDS.has(Number(i.productId)))}));
     data.donationPledges=data.donationPledges||[];
     return data;
@@ -179,7 +156,7 @@
     localStorage.setItem(KEY,JSON.stringify(sharedState));
     sessionStorage.setItem(SESSION_KEY,JSON.stringify(state.session||{mode:null,userId:null}));
   }
-  function reset(){localStorage.removeItem(KEY);sessionStorage.removeItem(SESSION_KEY);sessionStorage.removeItem(CLOUD_SESSION_KEY);cloudCredentials={};state=cleanRemovedProducts(structuredClone(seed));page="home";adminSection="dashboard";cart={};guestCart={};cartChoices={};guestCartChoices={};customRequest="";guestCustomRequest="";save();render()}
+  function reset(){localStorage.removeItem(KEY);sessionStorage.removeItem(SESSION_KEY);sessionStorage.removeItem(CLOUD_SESSION_KEY);cloudCredentials={};state=cleanRemovedProducts(structuredClone(seed));page="home";adminSection="dashboard";cart={};cartChoices={};adminCart={};adminCartChoices={};customRequest="";adminCustomRequest="";orderSchedule="today";announcementDismissed=false;save();render()}
   async function cloudRpc(name,body){const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);try{const response=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{method:"POST",headers:{apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${SUPABASE_ANON_KEY}`,"Content-Type":"application/json"},body:JSON.stringify(body),signal:controller.signal});if(!response.ok)throw new Error(`Supabase ${name}: ${response.status}`);const text=await response.text();return text?JSON.parse(text):null}finally{clearTimeout(timeout)}}
   async function getCloudPinStatus(id){try{const status=await cloudRpc("user_pin_status",{p_user_id:Number(id)});cloudPinStates.set(Number(id),status);return status}catch{cloudPinStates.set(Number(id),"offline");return "offline"}}
   async function loadAdminPinStates(){if(!cloudCredentials.adminPin)return;try{const rows=await cloudRpc("admin_pin_states",{p_admin_pin:cloudCredentials.adminPin});(rows||[]).forEach(row=>cloudPinStates.set(Number(row.user_id),row.locked_until&&new Date(row.locked_until)>new Date()?"locked":row.pin_status));return rows||[]}catch{return []}}
@@ -190,12 +167,12 @@
     state.recharges=(state.recharges||[]).map(row=>({...row,syncKey:stableSyncKey("recharge",row)}));
     state.donationPledges=(state.donationPledges||[]).map(row=>{const order=row.orderId?state.orders.find(o=>Number(o.id)===Number(row.orderId)):null;return {...row,syncKey:stableSyncKey("donation",row),orderSyncKey:row.orderSyncKey||order?.syncKey||null}});
   }
-  function operationalSettingsPayload(){return {guestOrdering:Boolean(state.settings.guestOrdering),balancePolicy:state.settings.balancePolicy,donationDay:Number(state.settings.donationDay)||5,donationGoal:state.settings.donationGoal}}
+  function operationalSettingsPayload(){return {balancePolicy:"block"}}
   function operationalOrderPayload(o){return {sync_key:stableSyncKey("order",o),order_type:o.type,user_id:o.userId||null,guest_name:o.guestName||null,guest_phone:o.guestPhone||null,ordered_at:o.date,status:o.status,items:o.items||[],custom_request:o.customRequest||"",custom_price:Number(o.customPrice||0),needs_contact:Boolean(o.needsContact),guest_donation:Number(o.guestDonation||0),updated_at:o.updatedAt||o.priceAdjustedAt||o.date}}
   function operationalDonationPayload(p){return {sync_key:stableSyncKey("donation",p),order_sync_key:p.orderSyncKey||null,user_id:p.userId||null,donor_name:p.name||"Convidado",amount:Number(p.amount||0),created_at:p.date,updated_at:p.updatedAt||p.date}}
-  function mergeCloudSettings(settings){if(!settings)return;Object.assign(state.settings,{guestOrdering:Boolean(settings.guestOrdering),balancePolicy:settings.balancePolicy||"allow-negative",donationDay:Number(settings.donationDay)||5,donationGoal:settings.donationGoal||state.settings.donationGoal,cloudOperationalUpdatedAt:settings.updatedAt})}
+  function mergeCloudSettings(settings){if(!settings)return;Object.assign(state.settings,{balancePolicy:"block",cloudOperationalUpdatedAt:settings.updatedAt})}
   function mergeCloudUser(cloudUser){if(!cloudUser)return;const local=user(cloudUser.id),remoteTime=cloudUser.updatedAt?new Date(cloudUser.updatedAt):null;if(local?.updatedAt&&remoteTime&&remoteTime<new Date(local.updatedAt))return;const updates={name:cloudUser.name,avatar:cloudUser.avatar,active:cloudUser.active};if(cloudUser.monthlyBalance!=null)updates.monthlyBalance=Number(cloudUser.monthlyBalance||0);if("balanceResetAt" in cloudUser)updates.balanceResetAt=cloudUser.balanceResetAt;if(cloudUser.updatedAt)updates.cloudUpdatedAt=cloudUser.updatedAt;if(local)Object.assign(local,updates);else state.users.push({...cloudUser,...updates,pin:"",pinConfigured:true,monthlyBalance:Number(cloudUser.monthlyBalance||0)})}
-  function mergeCloudProduct(cloudProduct){if(!cloudProduct)return;const local=product(cloudProduct.id);if(local)Object.assign(local,cloudProduct);else state.products.push({...cloudProduct,options:cloudProduct.options||[]})}
+  function mergeCloudProduct(cloudProduct){if(!cloudProduct||REMOVED_PRODUCT_IDS.has(Number(cloudProduct.id)))return;const normalized=Number(cloudProduct.id)===1?{...cloudProduct,name:"Bread",category:"Breads",price:16,options:[]}:Number(cloudProduct.id)===2?{...cloudProduct,name:"Badjia",price:3}:Number(cloudProduct.id)===5?{...cloudProduct,name:"Chamuça",price:12,options:(cloudProduct.options||[]).filter(group=>group.key!=="preco")}:Number(cloudProduct.id)===6?{...cloudProduct,name:"Rissol",price:12}:{...cloudProduct};const local=product(normalized.id);if(local)Object.assign(local,normalized);else state.products.push({...normalized,options:normalized.options||[]})}
   function mergeOperationalRows(localRows,cloudRows){const rows=new Map();(localRows||[]).forEach(row=>rows.set(row.syncKey,row));(cloudRows||[]).forEach(remote=>{const local=rows.get(remote.syncKey);if(!local||new Date(remote.updatedAt||remote.date||0)>=new Date(local.updatedAt||local.date||0))rows.set(remote.syncKey,remote)});return [...rows.values()]}
   function touchSettings(){state.settings.updatedAt=new Date().toISOString()}
   async function syncUserOperational(id,pin){
@@ -218,16 +195,12 @@
   async function hydrateAdminOperational(pin=cloudCredentials.adminPin){
     try{let cloud=await cloudRpc("load_admin_operational_state",{p_admin_pin:pin});if(!cloud)return false;ensureOperationalKeys();const localOrders=state.orders.slice(),localRecharges=state.recharges.slice(),localDonations=state.donationPledges.slice();(cloud.users||[]).forEach(mergeCloudUser);mergeCloudSettings(cloud.settings);state.orders=mergeOperationalRows(localOrders,cloud.orders||[]);state.recharges=mergeOperationalRows(localRecharges,cloud.recharges||[]);state.donationPledges=mergeOperationalRows(localDonations,cloud.donations||[]);ensureOperationalKeys();save();return true}catch{return false}
   }
-  async function submitGuestOperational(order){try{const id=await cloudRpc("submit_guest_order",{payload:{syncKey:order.syncKey,guestName:order.guestName,guestPhone:order.guestPhone,date:order.date,items:order.items||[],customRequest:order.customRequest||"",needsContact:Boolean(order.needsContact)}});if(!id)return false;order.id=Number(id);order.updatedAt=new Date().toISOString();order.pendingSync=false;save();return true}catch{return false}}
   async function submitUserOperational(order){try{const result=await cloudRpc("submit_user_order",{p_user_id:Number(order.userId),p_pin:cloudCredentials.userPin,payload:{syncKey:order.syncKey,date:order.date,items:order.items||[],customRequest:order.customRequest||"",needsContact:Boolean(order.needsContact)}});if(!result?.ok)return result||false;order.id=Number(result.id);order.status=result.status||order.status;order.pendingSync=false;order.updatedAt=new Date().toISOString();save();return result}catch{return false}}
-  async function flushPendingGuestOrders(){for(const order of state.orders.filter(o=>o.type==="guest"&&o.pendingSync))await submitGuestOperational(order)}
-  async function submitUserDonation(pledge){try{return await cloudRpc("submit_user_donation",{p_user_id:Number(pledge.userId),p_pin:cloudCredentials.userPin,payload:operationalDonationPayload(pledge)})}catch{return {ok:false,reason:"offline"}}}
   async function userSessionStatus(id,pin){try{return await cloudRpc("user_session_status",{p_user_id:Number(id),p_pin:pin})}catch{return null}}
-  async function syncGuestDonationOperational(pledge){try{return await cloudRpc("sync_guest_donation",{payload:{syncKey:pledge.syncKey,orderSyncKey:pledge.orderSyncKey||null,donorName:pledge.name||"Convidado",amount:Number(pledge.amount||0),date:pledge.date}})}catch{return false}}
   function toast(text){const e=$("#toast");e.textContent="";requestAnimationFrame(()=>{e.textContent=text;e.classList.add("show")});clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),3600)}
   function openModal(html,onClose=null){const modal=$("#modal"),sheet=$(".sheet"),wasOpen=modal.classList.contains("open");if(!wasOpen)modalOpener=document.activeElement;modalCloseAction=onClose;$("#modalContent").innerHTML=`<div class="modal-brand"><span aria-hidden="true">🍞</span><strong>O Pão de Cada Dia</strong><button class="modal-close" data-close aria-label="Fechar janela"><span aria-hidden="true">×</span></button></div><div class="modal-body">${html}</div>`;const heading=$("#modalContent h3");if(heading){heading.id="modalTitle";heading.tabIndex=-1;sheet.setAttribute("aria-labelledby","modalTitle");sheet.removeAttribute("aria-label")}else{sheet.removeAttribute("aria-labelledby");sheet.setAttribute("aria-label","Janela de diálogo")}modal.classList.add("open");modal.setAttribute("aria-hidden","false");app.inert=true;document.body.classList.add("modal-open");requestAnimationFrame(()=>{(heading||sheet)?.focus()})}
   function closeModal(){const modal=$("#modal");if(!modal.classList.contains("open"))return;const fallback=modalCloseAction;modalCloseAction=null;modal.classList.remove("open");modal.setAttribute("aria-hidden","true");app.inert=false;document.body.classList.remove("modal-open");const restore=modalOpener;modalOpener=null;if(fallback){requestAnimationFrame(fallback);return}if(restore?.isConnected)requestAnimationFrame(()=>restore.focus())}
-  function logout(){closeModal();state.session={mode:null,userId:null};storeCloudCredentials({});save();page="home";adminSection="dashboard";cart={};guestCart={};cartChoices={};guestCartChoices={};customRequest="";guestCustomRequest="";customOpen={user:false,guest:false};render()}
+  function logout(){closeModal();state.session={mode:null,userId:null};storeCloudCredentials({});save();page="home";adminSection="dashboard";cart={};cartChoices={};adminCart={};adminCartChoices={};customRequest="";adminCustomRequest="";orderSchedule="today";announcementDismissed=false;customOpen={user:false};render()}
   function statusText(s){return s==="paid"?"Pago":s==="debt"?"Em dívida":s==="cancelled"?"Cancelado":"Pendente"}
   function empty(emoji,text){return `<div class="empty"><div class="emoji">${emoji}</div><p>${text}</p></div>`}
   function afterBalanceReset(id,date){const reset=user(id)?.balanceResetAt;return !reset||new Date(date)>=new Date(reset)}
@@ -235,12 +208,13 @@
   function userRecharge(id){return state.recharges.filter(r=>r.userId===Number(id)&&isThisMonth(r.date)&&afterBalanceReset(id,r.date)).reduce((s,r)=>s+r.amount,0)}
   function userDonation(id){return (state.donationPledges||[]).filter(p=>p.userId===Number(id)&&isThisMonth(p.date)&&afterBalanceReset(id,p.date)).reduce((s,p)=>s+Number(p.amount||0),0)}
   function userAvailable(id){const u=user(id);return u.monthlyBalance+userRecharge(id)-userSpent(id)-userDonation(id)}
+  function normalizeTargetBalances(){BALANCE_TARGETS.forEach((target,id)=>{const u=user(id);if(u)u.monthlyBalance=target-userRecharge(id)+userSpent(id)+userDonation(id)})}
   function userOrdersAll(id){return state.orders.filter(o=>o.type==="user"&&o.userId===Number(id)&&o.status!=="cancelled")}
   function userItemQty(id,test){return userOrdersAll(id).reduce((sum,o)=>sum+o.items.reduce((total,item)=>{const p=product(item.productId);return total+(p&&test(p)?Number(item.qty):0)},0),0)}
   function userAllSpent(id){return userOrdersAll(id).reduce((sum,o)=>sum+orderTotal(o),0)}
   function balanceMessage(amount){
     if(amount<0)return `Calma campeão... ainda tens ${fmt(Math.abs(amount))} MT por acertar.`;
-    if(amount===0)return state.settings.balancePolicy==="block"?"Saldo esgotado. O bread fica para o próximo mês.":"Saldo em 0 MT. Ainda podes entrar nas dívidas — vai com calma, campeão.";
+    if(amount===0)return "Saldo esgotado. O bread fica para o próximo mês.";
     if(amount<=50)return `Restam apenas ${fmt(amount)} MT. Escolhe a badjia com sabedoria.`;
     if(amount<=100)return "A carteira está de dieta.";
     if(amount<=150)return "Calma, campeão. O teu saldo já está a pedir água.";
@@ -252,8 +226,7 @@
   }
   function celebrateOrder(){showConfetti();toast("Excelente escolha. O padeiro agradece. 🎉")}
   function balanceRuleModal(total,available){
-    const blocked=state.settings.balancePolicy==="block";
-    openModal(`<div class="balance-decision ${blocked?"blocked":"debt-ok"}"><div class="feedback-emoji">${blocked?"🛑":"😅"}</div><div class="eyebrow">${blocked?"MOLA ESGOTADA":"TERRITÓRIO DAS DÍVIDAS"}</div><h3>${blocked?"Hoje o bread fica a descansar":"Ainda queres mandar vir?"}</h3><p>${blocked?`O food custa <strong>${fmt(total)} MT</strong> e tens <strong>${fmt(available)} MT</strong>. Saldo esgotado. O bread fica para o próximo mês.`:`Eish, a mola está curta: o food custa ${fmt(total)} MT e tens ${fmt(available)} MT. Queres entrar nas dívidas e mandar vir mesmo assim?`}</p><div class="sheet-actions">${blocked?`<button class="primary orange" data-close>ENTENDI, BOSS</button>`:`<button class="secondary" data-close>VOLTAR</button><button class="primary orange" id="confirmDebtOrder">MANDAR MESMO ASSIM</button>`}</div></div>`);
+    openModal(`<div class="balance-decision blocked"><div class="feedback-emoji">🛑</div><div class="eyebrow">MOLA INSUFICIENTE</div><h3>Pedido bloqueado, boss</h3><p>O food custa <strong>${fmt(total)} MT</strong> e tens <strong>${fmt(available)} MT</strong> disponíveis. Recarrega o saldo antes de fazer este pedido.</p><div class="sheet-actions"><button class="primary orange" data-close>ENTENDI, BOSS</button></div></div>`);
   }
   function orderStatusFeedback(type,order){
     const paid=type==="paid",amount=orderTotal(order);
@@ -267,44 +240,13 @@
     openModal(`<div class="confirm-card danger"><div class="feedback-emoji">♻️</div><div class="eyebrow">LIMPAR ESTE APARELHO</div><h3>Apagar os dados locais?</h3><p>Os dados guardados neste navegador serão limpos. PINs e Hall partilhados no Supabase serão preservados.</p><div class="sheet-actions"><button class="secondary" data-close>CANCELAR</button><button class="primary orange" id="confirmSystemReset">LIMPAR APARELHO</button></div></div>`);
   }
   function orderOwner(o){return o.type==="guest" ? {name:o.guestName||"Convidado",avatar:"👤"} : user(o.userId)||{name:"Utilizador removido",avatar:"❔"}}
+  function orderDateLabel(value){const date=new Date(value),dateKey=localDateKey(date),todayKey=localDateKey(),tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);const tomorrowKey=localDateKey(tomorrow),time=new Intl.DateTimeFormat("pt-PT",{hour:"2-digit",minute:"2-digit"}).format(date);if(dateKey===todayKey)return `Hoje • ${time}`;if(dateKey===tomorrowKey)return `Amanhã • ${time}`;return `${new Intl.DateTimeFormat("pt-PT",{day:"2-digit",month:"2-digit",year:"numeric"}).format(date)} • ${time}`}
+  function scheduledOrderDate(){const date=new Date();date.setDate(date.getDate()+1);date.setHours(6,0,0,0);return date.toISOString()}
   function itemSummary(o){const items=(o.items||[]).map(i=>{const choices=Object.values(i.choices||{}).join(", ");return `${esc(product(i.productId)?.icon||"❔")} ×${i.qty}${choices?` (${esc(choices)})`:""}`}).join("  ");const special=o.customRequest?`${items?"  • ":""}📝 ${esc(o.customRequest)}`:"";return `${items}${special}${o.guestDonation?`  • 🚗 ${fmt(o.guestDonation)} MT`:""}`}
-  function fridayNotice(){return isFridayMode()
-    ? `<div class="friday-banner active"><span>🎉</span><div><strong>Sextou, meu people!</strong><small>Bebidas e extras estão na pista hoje. Não vacila.</small></div><b>ESTÁ NICE</b></div>`
-    : `<div class="friday-banner"><span>🍹</span><div><strong>Modo Sexta</strong><small>Na sexta abrimos a geleira: bebidas e extras para txilar.</small></div><b>SEXTA</b></div>`}
-  function donationNoticeKey(date=new Date()){
-    const person=state.session.mode==="user"?`user-${state.session.userId}`:state.session.mode;
-    return `${KEY}:donation-notice:${date.getFullYear()}-${date.getMonth()+1}:${person}`;
-  }
-  function donationModal(){
-    const day=Math.min(28,Math.max(1,Number(state.settings.donationDay)||5));
-    const available=userAvailable(state.session.userId);
-    openModal(`<div class="donation-pop"><div class="donation-emoji">🚗</div><div class="eyebrow">MISSÃO DO PADEIRO • DIA ${day}</div><h3>Txova aí o sonho do padeiro! 🥖💛</h3><p>Se o coração e a mola deixarem, manda uma força para <strong>${esc(state.settings.donationGoal)}</strong>.</p><div class="donation-joke">Cada 10 MT aproxima o boss do carro. Se não der, pelo menos já txova um Yango. 😂</div><div class="donation-picker" data-available="${available}"><div class="donation-value"><span>Quanto vais txovar?</span><strong id="donationAmount">0 MT</strong></div><div class="donation-balance">Mola disponível: <strong>${fmt(available)} MT</strong></div><input id="donationRange" type="range" min="0" max="1000" step="10" value="0" aria-label="Valor da contribuição"><div class="range-limits"><span>0 MT</span><span>1.000 MT</span></div><small class="donation-warning">Ao confirmar, este valor sai logo do teu saldo mensal.</small></div><div class="sheet-actions"><button class="secondary" data-close>Hoje não dá 😅</button><button class="primary orange" id="ackDonation" disabled>ESCOLHE A MOLA</button></div></div>`);
-  }
-  function guestDonationModal(order){
-    openModal(`<div class="donation-pop"><div class="donation-emoji">🥖🚗</div><div class="eyebrow">TXOVA DO DIA</div><h3>Dás uma boleia ao sonho, boss?</h3><p>O pedido <strong>#${order.id}</strong> já entrou. Se estiver nice, junta uma pequena força para <strong>${esc(state.settings.donationGoal)}</strong>.</p><div class="donation-joke">Hoje é carro, amanhã é combustível. Por enquanto, qualquer mola já ajuda no Yango. 😂</div><div class="donation-picker"><div class="donation-value"><span>Txova opcional</span><strong id="guestDonationAmount">0 MT</strong></div><input id="guestDonationRange" type="range" min="0" max="100" step="5" value="0" aria-label="Contribuição do convidado"><div class="range-limits"><span>0 MT</span><span>100 MT</span></div><small class="donation-warning">O valor escolhido entra no total deste pedido.</small></div><div class="sheet-actions"><button class="secondary" id="skipGuestDonation" data-order="${order.id}">Hoje não dá 😅</button><button class="primary orange" id="confirmGuestDonation" data-order="${order.id}" disabled>ESCOLHE A MOLA</button></div></div>`,()=>guestOrderSuccess(order));
-  }
-  function guestDailyDonationCard(){
-    return `<div class="daily-donation card"><div class="daily-donation-top"><span>🥖💛</span><div><strong>Txova do dia</strong><small>Uma força diária para o sonho do padeiro.</small></div><b>TODO DIA</b></div><div class="donation-value"><span>Quanta mola queres mandar?</span><strong id="dailyGuestDonationAmount">0 MT</strong></div><input id="dailyGuestDonationRange" type="range" min="0" max="100" step="5" value="0" aria-label="Contribuição diária do convidado"><div class="range-limits"><span>0 MT</span><span>100 MT</span></div><button class="primary orange" id="startDailyGuestDonation" disabled>ESCOLHE A MOLA</button></div>`;
-  }
-  function donationPaymentModal(amount,orderId=null){
-    const order=orderId?state.orders.find(o=>o.id===Number(orderId)):null;openModal(`<div class="donation-pop"><div class="donation-emoji">📲</div><div class="eyebrow">MANDA ESSA FORÇA</div><h3>Já falta pouco, boss! 🚗</h3><p>Manda <strong>${fmt(amount)} MT</strong> para o número abaixo. Quando copiares, a contribuição fica registada.</p><div class="payment-number"><span>Número para mandar a mola</span><strong>876 760 317</strong><button id="copyDonationNumber" data-number="${DONATION_NUMBER}" data-amount="${amount}" data-order="${orderId||""}">📋 COPIAR NÚMERO</button></div><div class="donation-joke">O padeiro promete não queimar toda a mola em bread para a viagem. 😂</div><div class="sheet-actions"><button class="secondary" data-close>Agora não</button><button class="primary" id="finishDonationPayment" data-order="${orderId||""}" disabled>COPIA O NÚMERO, BOSS</button></div></div>`,order?()=>guestOrderSuccess(order):null);
-  }
   function copyText(text){
     if(navigator.clipboard?.writeText)return navigator.clipboard.writeText(text);
     const field=document.createElement("textarea");field.value=text;field.style.position="fixed";field.style.opacity="0";document.body.appendChild(field);field.select();document.execCommand("copy");field.remove();return Promise.resolve();
   }
-  function guestOrderSuccess(order){
-    openModal(`<div style="text-align:center;padding:10px 4px 2px"><div style="font-size:58px">🎉</div><h3>Pedido entrou, boss!</h3><p style="font-size:11px;color:var(--muted);line-height:1.5">O food de ${esc(order.guestName)} já está no sistema${order.guestDonation?` com uma txova de <strong>${fmt(order.guestDonation)} MT</strong> para o padeiro`:""}. Mola a combinar: <strong>${orderTotalLabel(order)}</strong>.</p><button class="primary" data-logout style="margin-top:10px">BAZAR PARA O INÍCIO</button></div>`);
-  }
-  function scheduleDonationNotice(){
-    clearTimeout(donationTimer);
-    if(state.session.mode!=="user")return;
-    const now=new Date(),day=Math.min(28,Math.max(1,Number(state.settings.donationDay)||5)),key=donationNoticeKey(now);
-    if(now.getDate()!==day||localStorage.getItem(key))return;
-    const show=()=>{if($("#modal").classList.contains("open")){donationTimer=setTimeout(show,500);return}localStorage.setItem(key,"1");donationModal()};
-    donationTimer=setTimeout(show,220);
-  }
-
   function rankingModal(cloudRows=null){
     const active=state.users.filter(u=>u.active!==false);
     const remote=new Map();
@@ -330,6 +272,8 @@
     if(cloudRows===null)loadCloudRanking().then(rows=>{if($(".ranking-modal"))rankingModal(rows)}).catch(()=>toast("O Hall partilhado está offline. Mostrei os dados deste aparelho."));
   }
 
+  function announcementBanner(){if(announcementDismissed)return "";return `<section class="announcement-banner" role="alert"><div class="announcement-icon" aria-hidden="true">📢</div><div class="announcement-copy"><strong>AVISO IMPORTANTE — NOVAS REGRAS</strong><p>Agora o admin pode fazer pedidos por utilizadores e convidados. Utilizadores podem agendar para amanhã às <b>06:00</b>.</p><p class="announcement-balance">🚫 <b>Ninguém faz pedidos com saldo 0 MT ou insuficiente.</b> O pedido fica bloqueado até haver saldo suficiente.</p></div><button class="announcement-close" data-dismiss-announcement aria-label="Fechar aviso">×<span>Fechar</span></button></section>`}
+
   function entryView(){
     return `<main id="main" class="entry-wrap" tabindex="-1">
       <div class="entry-logo">
@@ -338,6 +282,7 @@
         <p>Pedidos, mola mensal e fome maningue séria.</p>
         <div class="opening-phrase"><span>💬</span>${esc(openingPhrase)}</div>
       </div>
+      ${announcementBanner()}
       <div class="access-grid">
         <button class="access-card" data-entry="user">
           <span class="access-icon">🙂</span><span><strong>Entrar como boss da fome</strong><small>Ver a mola, mandar pedidos e acompanhar o teu food.</small></span><span class="access-arrow">›</span>
@@ -345,9 +290,6 @@
         <button class="access-card admin" data-entry="admin">
           <span class="access-icon">🧑🏽‍💼</span><span><strong>Cantinho do administrador</strong><small>São processos: pessoas, produtos, mola e pedidos.</small></span><span class="access-arrow">›</span>
         </button>
-        ${state.settings.guestOrdering?`<button class="access-card guest" data-entry="guest">
-          <span class="access-icon">🛒</span><span><strong>Pedido rápido, sem stress</strong><small>Diz o nome, escolhe o food e manda vir.</small></span><span class="access-arrow">›</span>
-        </button>`:""}
         <button class="access-card ranking" id="openRanking">
           <span class="access-icon">🏆</span><span><strong>Ver os bosses da fome</strong><small>Pódio e campeões maningue fortes da turma.</small></span><span class="access-arrow">›</span>
         </button>
@@ -358,7 +300,7 @@
 
   function shell(title,subtitle,right,content,nav){
     return `<header class="topbar"><div class="brand"><div class="brand-icon">🍞</div><div><h1>${title}</h1><small>${subtitle}</small></div></div>${right||""}</header>
-      <main id="main" class="app-content" tabindex="-1">${content}</main>${nav||""}`;
+      <main id="main" class="app-content" tabindex="-1">${announcementBanner()}${content}</main>${nav||""}`;
   }
 
   function userNav(){
@@ -377,7 +319,6 @@
     const qty=id=>orders.reduce((s,o)=>s+o.items.filter(i=>i.productId===id).reduce((a,i)=>a+i.qty,0),0);
     const spent=userSpent(u.id),recharged=userRecharge(u.id),donated=userDonation(u.id),available=userAvailable(u.id),funds=u.monthlyBalance+recharged;
     return `<div class="hero"><div class="eyebrow">Então, ${esc(u.name)}, está nice?</div><h2>Vamos txovar essa fome? 😋</h2><p>Escolhe o food, controla a mola e acompanha os teus pedidos.</p><div class="hero-chip">💬 ${esc(openingPhrase)}</div></div>
-      ${fridayNotice()}
       <div class="stats"><div class="stat"><span class="emoji">🥖</span><strong>${qty(1)}</strong><span>Meus breads</span></div><div class="stat"><span class="emoji">🥟</span><strong>${qty(2)}</strong><span>Badjias</span></div><div class="stat"><span class="emoji">🧾</span><strong>${orders.length}</strong><span>Pedidos</span></div></div>
       <div class="head"><div><h3>Meu saldo</h3><p>${monthName}</p></div><button class="link" data-user-page="balance">Ver detalhes →</button></div>
       <div class="card balance"><div class="balance-top"><div><div class="label">Saldo disponível</div><div class="money">${fmt(available)} <small>MT</small></div></div><div class="wallet">👛</div></div>
@@ -389,48 +330,50 @@
       <div class="card orders">${orders.length?orders.slice(0,3).map(userOrderRow).join(""):empty("🍽️","Ainda nada, boss. Bora mandar um pedido?")}</div>`;
   }
 
-  function choiceStore(mode){return mode==="guest"?guestCartChoices:cartChoices}
+  function choiceStore(mode){return mode==="admin"?adminCartChoices:cartChoices}
+  function modeCart(mode){return mode==="admin"?adminCart:cart}
+  function modeCustom(mode){return mode==="admin"?adminCustomRequest:customRequest}
   function selectedChoices(p,mode){const store=choiceStore(mode);if(!store[p.id])store[p.id]={};(p.options||[]).forEach(group=>{if(!store[p.id][group.key])store[p.id][group.key]=group.choices[0]?.label||""});return store[p.id]}
   function selectedUnitPrice(p,mode){let price=Number(p.price||0),selected=selectedChoices(p,mode);(p.options||[]).forEach(group=>{const choice=group.choices.find(c=>c.label===selected[group.key]);if(choice?.price!=null)price=Number(choice.price)});return price}
   function cartQty(c){return Object.values(c).reduce((sum,q)=>sum+Number(q||0),0)}
-  function cartContentCount(c,mode){return cartQty(c)+((mode==="guest"?guestCustomRequest:customRequest).trim()?1:0)}
+  function cartContentCount(c,mode){return cartQty(c)+(modeCustom(mode).trim()?1:0)}
   function cartTotal(c,mode){return Object.entries(c).reduce((s,[id,q])=>{const p=product(id);return s+(canOrderProduct(p)?selectedUnitPrice(p,mode):0)*q},0)}
-  function cartNeedsContact(c,mode){return Object.entries(c).some(([id,q])=>q>0&&canOrderProduct(product(id))&&(Number(product(id)?.price||0)===0||product(id)?.contactForFlavor))||Boolean((mode==="guest"?guestCustomRequest:customRequest).trim())}
-  function orderHasContent(c,mode){return cartQty(c)>0||Boolean((mode==="guest"?guestCustomRequest:customRequest).trim())}
+  function cartNeedsContact(c,mode){return Object.entries(c).some(([id,q])=>q>0&&canOrderProduct(product(id))&&(Number(product(id)?.price||0)===0||product(id)?.contactForFlavor))||Boolean(modeCustom(mode).trim())}
+  function orderHasContent(c,mode){return cartQty(c)>0||Boolean(modeCustom(mode).trim())}
   function checkoutMarkup(mode){
-    const c=mode==="guest"?guestCart:cart,total=cartTotal(c,mode),count=cartContentCount(c,mode),hasContent=orderHasContent(c,mode),needsContact=cartNeedsContact(c,mode),isGuest=mode==="guest";
+    const c=modeCart(mode),total=cartTotal(c,mode),count=cartContentCount(c,mode),hasContent=orderHasContent(c,mode),needsContact=cartNeedsContact(c,mode);
     const itemText=count?`${count} ${count===1?"item escolhido":"itens escolhidos"}`:"Nenhum item escolhido";
-    const context=isGuest?(needsContact?"Preço final será confirmado":"Preço do pedido"):`Saldo disponível: ${fmt(userAvailable(activeUser().id))} MT`;
+    const context=`Saldo disponível: ${fmt(userAvailable(activeUser().id))} MT`;
     const totalLabel=needsContact?"Total estimado":"Total do pedido";
     const amount=needsContact?(total>0?`${fmt(total)} MT + confirmar`:"A confirmar"):`${fmt(total)} MT`;
-    const buttonText=hasContent?(isGuest?"REVER PEDIDO, BOSS":"REVER PEDIDO 😋"):"ESCOLHE O FOOD PRIMEIRO";
-    return `<div class="checkout-space" aria-hidden="true"></div><div class="checkout ${isGuest?"guest-checkout ":""}${hasContent?"":"is-empty"}" data-checkout-mode="${mode}"><div class="checkout-summary"><div class="checkout-order"><span class="checkout-kicker">O TEU PEDIDO</span><strong data-checkout-count>${itemText}</strong><small data-checkout-context>${context}</small></div><div class="checkout-total"><span data-checkout-total-label>${totalLabel}</span><strong data-checkout-value aria-live="polite">${amount}</strong></div></div><button class="primary" id="${isGuest?"reviewGuestOrder":"reviewUserOrder"}" ${hasContent?"":"disabled"}>${buttonText}</button></div>`;
+    const buttonText=hasContent?"REVER PEDIDO 😋":"ESCOLHE O FOOD PRIMEIRO";
+    return `<div class="checkout-space" aria-hidden="true"></div><div class="checkout ${hasContent?"":"is-empty"}" data-checkout-mode="${mode}"><div class="checkout-summary"><div class="checkout-order"><span class="checkout-kicker">O TEU PEDIDO</span><strong data-checkout-count>${itemText}</strong><small data-checkout-context>${context}</small></div><div class="checkout-total"><span data-checkout-total-label>${totalLabel}</span><strong data-checkout-value aria-live="polite">${amount}</strong></div></div><button class="primary" id="reviewUserOrder" ${hasContent?"":"disabled"}>${buttonText}</button></div>`;
   }
-  function refreshCheckout(mode){const c=mode==="guest"?guestCart:cart,total=cartTotal(c,mode),count=cartContentCount(c,mode),hasContent=orderHasContent(c,mode),needsContact=cartNeedsContact(c,mode),isGuest=mode==="guest",footer=$(`[data-checkout-mode="${mode}"]`),button=$(isGuest?"#reviewGuestOrder":"#reviewUserOrder");if(footer){$("[data-checkout-count]",footer).textContent=count?`${count} ${count===1?"item escolhido":"itens escolhidos"}`:"Nenhum item escolhido";$("[data-checkout-context]",footer).textContent=isGuest?(needsContact?"Preço final será confirmado":"Preço do pedido"):`Saldo disponível: ${fmt(userAvailable(activeUser().id))} MT`;$("[data-checkout-total-label]",footer).textContent=needsContact?"Total estimado":"Total do pedido";$("[data-checkout-value]",footer).textContent=needsContact?(total>0?`${fmt(total)} MT + confirmar`:"A confirmar"):`${fmt(total)} MT`;footer.classList.toggle("is-empty",!hasContent)}if(button){button.disabled=!hasContent;button.textContent=hasContent?(isGuest?"REVER PEDIDO, BOSS":"REVER PEDIDO 😋"):"ESCOLHE O FOOD PRIMEIRO"}}
+  function refreshCheckout(mode){const c=modeCart(mode),total=cartTotal(c,mode),count=cartContentCount(c,mode),hasContent=orderHasContent(c,mode),needsContact=cartNeedsContact(c,mode),footer=$(`[data-checkout-mode="${mode}"]`),button=$("#reviewUserOrder");if(footer){$("[data-checkout-count]",footer).textContent=count?`${count} ${count===1?"item escolhido":"itens escolhidos"}`:"Nenhum item escolhido";$("[data-checkout-context]",footer).textContent=`Saldo disponível: ${fmt(userAvailable(activeUser().id))} MT`;$("[data-checkout-total-label]",footer).textContent=needsContact?"Total estimado":"Total do pedido";$("[data-checkout-value]",footer).textContent=needsContact?(total>0?`${fmt(total)} MT + confirmar`:"A confirmar"):`${fmt(total)} MT`;footer.classList.toggle("is-empty",!hasContent)}if(button){button.disabled=!hasContent;button.textContent=hasContent?"REVER PEDIDO 😋":"ESCOLHE O FOOD PRIMEIRO"}}
   function optionsMarkup(p,mode){const selected=selectedChoices(p,mode);return (p.options||[]).map(group=>`<label><span>${esc(group.label)}</span><select data-product-option="${p.id}" data-option-key="${esc(group.key)}" data-cart-mode="${mode}">${group.choices.map(choice=>`<option value="${esc(choice.label)}" ${selected[group.key]===choice.label?"selected":""}>${esc(choice.label)}</option>`).join("")}</select></label>`).join("")}
   function productPicker(currentCart,mode){
     const orderable=state.products.filter(canOrderProduct).sort(byName);
     const products=orderable.filter(p=>category==="Todos"||p.category===category);
     const cats=["Todos",...[...new Set(orderable.map(p=>p.category))].sort((a,b)=>a.localeCompare(b,"pt",{sensitivity:"base"}))];
     return `<div class="categories" aria-label="Categorias do cardápio">${cats.map(c=>`<button class="chip ${c===category?"active":""}" data-category="${esc(c)}" aria-pressed="${c===category}">${esc(c)}</button>`).join("")}</div>
-      <div class="card product-list">${products.map(p=>{const price=selectedUnitPrice(p,mode),qty=Number(currentCart[p.id]||0);return `<div class="product ${qty>0?"selected":""}"><div class="picon">${esc(p.icon)}</div><div class="product-main"><strong>${esc(p.name)}</strong>${p.fridayOnly?`<span class="friday-tag">SEXTA</span>`:""}<div class="price">${price>0?`${fmt(price)} MT`:"Preço a confirmar"}</div>${p.contactForFlavor?`<small class="contact-note">📞 Vamos contactar-te para confirmar sabor e disponibilidade.</small>`:""}<div class="product-options">${optionsMarkup(p,mode)}</div></div><div class="qty"><button data-cart-minus="${p.id}" data-cart-mode="${mode}" aria-label="Diminuir quantidade de ${esc(p.name)}">−</button><span aria-live="polite" aria-label="Quantidade de ${esc(p.name)}">${qty}</span><button data-cart-plus="${p.id}" data-cart-mode="${mode}" aria-label="Aumentar quantidade de ${esc(p.name)}">+</button></div></div>`}).join("")}</div>`;
+      <div class="card product-list">${products.map(p=>{const price=selectedUnitPrice(p,mode),qty=Number(currentCart[p.id]||0);return `<div class="product ${qty>0?"selected":""}"><div class="picon">${esc(p.icon)}</div><div class="product-main"><strong>${esc(p.name)}</strong><div class="price">${price>0?`${fmt(price)} MT`:"Preço a confirmar"}</div>${p.contactForFlavor?`<small class="contact-note">📞 Vamos contactar-te para confirmar sabor e disponibilidade.</small>`:""}<div class="product-options">${optionsMarkup(p,mode)}</div></div><div class="qty"><button data-cart-minus="${p.id}" data-cart-mode="${mode}" aria-label="Diminuir quantidade de ${esc(p.name)}">−</button><span aria-live="polite" aria-label="Quantidade de ${esc(p.name)}">${qty}</span><button data-cart-plus="${p.id}" data-cart-mode="${mode}" aria-label="Aumentar quantidade de ${esc(p.name)}">+</button></div></div>`}).join("")}</div>`;
   }
-  function customRequestCard(mode){const open=customOpen[mode],value=mode==="guest"?guestCustomRequest:customRequest;return `<div class="custom-request card"><button data-toggle-custom="${mode}" aria-expanded="${open}" aria-controls="custom-area-${mode}"><span aria-hidden="true">✍🏽</span><div><strong>Não encontraste? Escreve aí, boss</strong><small>Faz um pedido especial e confirmamos o preço.</small></div><b aria-hidden="true">${open?"−":"+"}</b></button>${open?`<div class="custom-request-body" id="custom-area-${mode}"><label for="customRequest-${mode}">O QUE PROCURAS?</label><textarea id="customRequest-${mode}" data-custom-mode="${mode}" maxlength="160" placeholder="Ex.: Quero um bolo de chocolate...">${esc(value)}</textarea><small>O administrador vai contactar-te para confirmar disponibilidade e mola.</small></div>`:""}</div>`}
+  function customRequestCard(mode){const open=customOpen[mode],value=modeCustom(mode);return `<div class="custom-request card"><button data-toggle-custom="${mode}" aria-expanded="${open}" aria-controls="custom-area-${mode}"><span aria-hidden="true">✍🏽</span><div><strong>Não encontraste? Escreve aí, boss</strong><small>Faz um pedido especial e confirmamos o preço.</small></div><b aria-hidden="true">${open?"−":"+"}</b></button><div class="custom-fee-alert" role="note"><span class="custom-fee-icon" aria-hidden="true">⚠️</span><div><strong>AVISO IMPORTANTE</strong><span>Pedidos fora da lista podem ter um acréscimo de <b>1 a 100 MT</b>, conforme o produto e a dificuldade de encontrar.</span></div></div>${open?`<div class="custom-request-body" id="custom-area-${mode}"><label for="customRequest-${mode}">O QUE PROCURAS?</label><textarea id="customRequest-${mode}" data-custom-mode="${mode}" maxlength="160" placeholder="Ex.: Quero um bolo de chocolate...">${esc(value)}</textarea><small>O administrador vai contactar-te para confirmar disponibilidade e mola.</small></div>`:""}</div>`}
   function reviewOrderModal(mode){
-    const currentCart=mode==="guest"?guestCart:cart,total=cartTotal(currentCart,mode),needsContact=cartNeedsContact(currentCart,mode),special=(mode==="guest"?guestCustomRequest:customRequest).trim();
+    const currentCart=cart,total=cartTotal(currentCart,"user"),needsContact=cartNeedsContact(currentCart,"user"),special=customRequest.trim();
     const lines=Object.entries(currentCart).filter(([id,qty])=>qty>0&&canOrderProduct(product(id))).map(([id,qty])=>{const p=product(id),choices=Object.values(selectedChoices(p,mode)).join(", "),price=selectedUnitPrice(p,mode);return `<div class="review-line"><span class="review-icon">${esc(p.icon)}</span><div><strong>${esc(p.name)} × ${qty}</strong><small>${choices?esc(choices):esc(p.category)}</small></div><b>${price>0?`${fmt(price*qty)} MT`:"A confirmar"}</b></div>`}).join("");
-    openModal(`<div class="review-modal"><div class="head" style="margin-top:0"><div><h3>Confirma o teu pedido</h3><p>Vê se está tudo nice antes de mandar.</p></div><span style="font-size:36px" aria-hidden="true">🧺</span></div><div class="review-list">${lines}${special?`<div class="review-line special"><span class="review-icon">📝</span><div><strong>Pedido especial</strong><small>${esc(special)}</small></div><b>A confirmar</b></div>`:""}</div>${needsContact?`<div class="review-warning"><span aria-hidden="true">📞</span><div><strong>Há detalhes para confirmar</strong><small>O administrador vai confirmar preço, sabor ou disponibilidade contigo.</small></div></div>`:""}<div class="review-total"><span>Total ${needsContact?"estimado":"do pedido"}</span><strong>${needsContact?(total>0?`${fmt(total)} MT + confirmar`:"A confirmar"):`${fmt(total)} MT`}</strong></div><div class="sheet-actions"><button class="secondary" data-close>Voltar e ajustar</button><button class="primary orange" id="${mode==="guest"?"submitGuestOrder":"submitUserOrder"}">CONFIRMAR PEDIDO</button></div></div>`);
+    openModal(`<div class="review-modal"><div class="head" style="margin-top:0"><div><h3>Confirma o teu pedido</h3><p>Vê se está tudo nice antes de mandar.</p></div><span style="font-size:36px" aria-hidden="true">🧺</span></div><div class="review-schedule"><span>📅</span><div><strong>${orderSchedule==="tomorrow"?"Pedido agendado para amanhã":"Pedido para hoje"}</strong><small>${orderDateLabel(orderSchedule==="tomorrow"?scheduledOrderDate():new Date())}</small></div></div><div class="review-list">${lines}${special?`<div class="review-line special"><span class="review-icon">📝</span><div><strong>Pedido especial</strong><small>${esc(special)}</small></div><b>A confirmar</b></div>`:""}</div>${needsContact?`<div class="review-warning"><span aria-hidden="true">📞</span><div><strong>Há detalhes para confirmar</strong><small>O administrador vai confirmar preço, sabor ou disponibilidade contigo.</small></div></div>`:""}<div class="review-total"><span>Total ${needsContact?"estimado":"do pedido"}</span><strong>${needsContact?(total>0?`${fmt(total)} MT + confirmar`:"A confirmar"):`${fmt(total)} MT`}</strong></div><div class="sheet-actions"><button class="secondary" data-close>Voltar e ajustar</button><button class="primary orange" id="submitUserOrder">CONFIRMAR PEDIDO</button></div></div>`);
   }
   function userMenu(u){
     const available=userAvailable(u.id),total=cartTotal(cart,"user"),needsContact=cartNeedsContact(cart,"user");
     return `<div class="head" style="margin-top:2px"><div><h2>Manda vir o food</h2><p>Escolhe o que vai txovar essa fome.</p></div><span style="font-size:39px">🧺</span></div>
-      ${fridayNotice()}
       ${available<=150?`<div class="balance-alert ${available<=0?"negative":""}"><span>${available<=0?"🚨":"👛"}</span><div><strong>${available<0?"Território das dívidas":available===0?"Saldo esgotado":"Saldo a ficar baixo"}</strong><small>${balanceMessage(available)}</small></div></div>`:""}
+      <div class="schedule-card card"><div><strong>Quando queres receber?</strong><small>Escolhe agora ou deixa o pedido preparado para amanhã.</small></div><div class="schedule-options" role="group" aria-label="Data do pedido"><button class="schedule-option ${orderSchedule==="today"?"active":""}" data-order-schedule="today" aria-pressed="${orderSchedule==="today"}"><span>☀️</span><strong>Hoje</strong><small>${orderDateLabel(new Date())}</small></button><button class="schedule-option ${orderSchedule==="tomorrow"?"active":""}" data-order-schedule="tomorrow" aria-pressed="${orderSchedule==="tomorrow"}"><span>📅</span><strong>Amanhã</strong><small>${orderDateLabel(scheduledOrderDate())}</small></button></div></div>
       ${productPicker(cart,"user")}
       ${customRequestCard("user")}
       ${checkoutMarkup("user")}`;
   }
-  function userOrderRow(o){return `<div class="order"><div class="face">🧾</div><div><strong>Pedido #${o.id}</strong><small>${itemSummary(o)}</small></div><div class="side"><b>${orderTotalLabel(o)}</b><span class="status ${o.status}">${statusText(o.status)}</span></div></div>`}
+  function userOrderRow(o){return `<div class="order"><div class="face">🧾</div><div><strong>Pedido #${o.id}</strong><small>${orderDateLabel(o.date)} • ${itemSummary(o)}</small></div><div class="side"><b>${orderTotalLabel(o)}</b><span class="status ${o.status}">${statusText(o.status)}</span></div></div>`}
   function userOrders(u){
     const map={"Pendente":"pending","Pago":"paid","Em dívida":"debt","Cancelado":"cancelled"};
     const all=state.orders.filter(o=>o.type==="user"&&o.userId===u.id);
@@ -455,20 +398,6 @@
       <div class="profile-info"><div class="info-row"><span>Plano mensal</span><span>${fmt(u.monthlyBalance)} MT</span></div><div class="info-row"><span>Total em compras</span><span>${fmt(userSpent(u.id))} MT</span></div><div class="info-row"><span>Contribuições ao padeiro</span><span>${fmt(userDonation(u.id))} MT</span></div><div class="info-row"><span>Saldo atual</span><span>${fmt(userAvailable(u.id))} MT</span></div><div class="info-row"><span>Pedidos do mês</span><span>${orders.length}</span></div></div></div>`;
   }
 
-  function guestView(){
-    const total=cartTotal(guestCart,"guest"),needsContact=cartNeedsContact(guestCart,"guest");
-    const content=`<div class="hero guest"><div class="eyebrow">Pedido rápido</div><h2>Sem cadastro, sem stress. 🛒</h2><p>Diz o teu nome, escolhe o food e manda o pedido.</p><div class="hero-chip">💬 ${esc(openingPhrase)}</div></div>
-      ${fridayNotice()}
-      <div class="head"><div><h3>Quem és, boss?</h3><p>Só o básico, sem interrogatório.</p></div></div>
-      <div class="card" style="padding:15px"><div class="form-row" style="margin-top:0"><label for="guestName">TEU NOME *</label><input id="guestName" maxlength="30" required aria-required="true" placeholder="Ex.: Mokizzow" value="${state.session.guestName||""}"></div><div class="form-row"><label for="guestPhone">CONTACTO ${needsContact?"OBRIGATÓRIO PARA CONFIRMAR":"OPCIONAL"}</label><input id="guestPhone" maxlength="20" ${needsContact?'required aria-required="true"':""} aria-describedby="guestPhoneHint" placeholder="Ex.: 84 000 0000" value="${state.session.guestPhone||""}"><small class="field-hint" id="guestPhoneHint">${needsContact?"Precisamos do contacto para confirmar preço, sabor ou disponibilidade.":"Podes deixar um número para facilitar a entrega."}</small></div></div>
-      <div class="head"><div><h3>Escolhe o teu food</h3><p>Vais entrar como convidado. Está nice.</p></div></div>
-      ${productPicker(guestCart,"guest")}
-      ${customRequestCard("guest")}
-      ${guestDailyDonationCard()}
-      ${checkoutMarkup("guest")}`;
-    return shell("Pedido sem stress","Convidado",`<button class="icon-btn" data-logout title="Sair" aria-label="Voltar ao início">↩️</button>`,content,"");
-  }
-
   function adminNav(){
     const items=[["dashboard","📊","Resumo"],["orders","📋","Pedidos"],["products","🧺","Produtos"],["users","👥","Utilizadores"],["settings","⚙️","Gestão"]];
     return `<nav class="bottom-nav cols-5" aria-label="Navegação administrativa">${items.map(([id,icon,label])=>`<button class="nav ${adminSection===id?"active":""}" data-admin-section="${id}" ${adminSection===id?'aria-current="page"':""}><i aria-hidden="true">${icon}</i><span>${label}</span></button>`).join("")}</nav>`;
@@ -486,12 +415,12 @@
     return `<div class="hero admin"><div class="eyebrow">Base do padeiro</div><h2>Todo o mambo num só sítio. 📊</h2><p>Pessoas, convidados, food e mola. Aqui não escapa nada.</p><div class="hero-chip">${pending.length} pedidos estão a fazer bichinha</div></div>
       <div class="head"><div><h3>Resumo do mês</h3><p>${monthName}</p></div></div>
       <div class="admin-kpis"><div class="card kpi"><div class="kicon">🧾</div><strong>${month.length}</strong><span>Pedidos no mês</span></div><div class="card kpi"><div class="kicon">👤</div><strong>${guest.length}</strong><span>Pedidos sem cadastro</span></div><div class="card kpi"><div class="kicon">⏳</div><strong>${pending.length}</strong><span>Pedidos pendentes</span></div><div class="card kpi"><div class="kicon">💰</div><strong>${fmt(revenue)} MT</strong><span>Volume registado</span></div></div>
-      <div class="head"><div><h3>Pedidos de hoje</h3><p>Utilizadores e convidados.</p></div><button class="secondary receipt-open" id="openDailyReceipt">🧾 Recibo do dia</button></div>
+      <div class="head"><div><h3>Pedidos de hoje</h3><p>Utilizadores e convidados.</p></div><div class="action-row"><button class="primary orange" id="newAdminOrder">+ Novo pedido</button><button class="secondary receipt-open" id="openDailyReceipt">🧾 Recibo do dia</button></div></div>
       <div class="card orders">${todayOrders.length?todayOrders.slice(0,5).map(o=>adminOrderRow(o,false)).join(""):empty("🍽️","Hoje está calmo, boss. Ainda não entrou food.")}</div>`;
   }
   function adminOrderRow(o,canDelete=false){
     const owner=orderOwner(o);
-    const row=`<button class="order order-button" data-admin-order="${o.id}" aria-label="Abrir pedido ${o.id} de ${esc(owner.name)}"><div class="face">${esc(owner.avatar)}</div><div><strong>${esc(owner.name)}</strong><small>${itemSummary(o)} ${o.type==="guest"?"• sem cadastro":""}</small></div><div class="side"><b>${orderTotalLabel(o)}</b><span class="status ${o.type==="guest"?"guest-tag":o.status}">${o.type==="guest"?"Convidado":statusText(o.status)}</span><span class="status ${o.status}">${statusText(o.status)}</span></div></button>`;
+    const row=`<button class="order order-button" data-admin-order="${o.id}" aria-label="Abrir pedido ${o.id} de ${esc(owner.name)}"><div class="face">${esc(owner.avatar)}</div><div><strong>${esc(owner.name)}</strong><small>${orderDateLabel(o.date)} • ${itemSummary(o)} ${o.type==="guest"?"• sem cadastro":""}</small></div><div class="side"><b>${orderTotalLabel(o)}</b><span class="status ${o.type==="guest"?"guest-tag":o.status}">${o.type==="guest"?"Convidado":statusText(o.status)}</span><span class="status ${o.status}">${statusText(o.status)}</span></div></button>`;
     return canDelete?`<div class="admin-order-row">${row}<button class="mini-btn delete" data-delete-order="${esc(o.id)}" aria-label="Eliminar pedido ${o.id}">🗑️</button></div>`:row;
   }
   function adminOrders(){
@@ -499,10 +428,29 @@
     let list=state.orders;
     if(orderFilter==="Convidados")list=list.filter(o=>o.type==="guest");else if(orderFilter!=="Todos")list=list.filter(o=>o.status===map[orderFilter]);
     if(adminOrderDate)list=list.filter(o=>localDateKey(o.date)===adminOrderDate);
-    return `<div class="head" style="margin-top:2px"><div><h2>Gestão de pedidos</h2><p>Registados e sem cadastro.</p></div><button class="secondary receipt-open" id="openDailyReceipt">🧾 Recibo diário</button></div>
+    return `<div class="head" style="margin-top:2px"><div><h2>Gestão de pedidos</h2><p>Pedidos feitos pelo admin para qualquer pessoa.</p></div><div class="action-row"><button class="primary orange" id="newAdminOrder">+ Novo pedido</button><button class="secondary receipt-open" id="openDailyReceipt">🧾 Recibo diário</button></div></div>
       <div class="order-filter-tools"><div class="form-row"><label for="adminOrderDate">FILTRAR POR DIA</label><input id="adminOrderDate" type="date" value="${esc(adminOrderDate)}"></div><button class="secondary" id="clearAdminOrderDate" ${adminOrderDate?"":"disabled"}>Todos os dias</button></div>
       <div class="filters" aria-label="Filtrar pedidos">${["Todos","Pendente","Pago","Em dívida","Convidados","Cancelado"].map(f=>`<button class="chip ${f===orderFilter?"active":""}" data-order-filter="${f}" aria-pressed="${f===orderFilter}">${f}</button>`).join("")}</div>
       <div class="order-filter-result" aria-live="polite">${list.length} ${list.length===1?"pedido encontrado":"pedidos encontrados"}</div><div class="card orders">${list.length?list.map(o=>adminOrderRow(o,true)).join(""):empty("🥖","Não há pedidos com este filtro.")}</div>`;
+  }
+
+  function adminProductPicker(){
+    const products=state.products.filter(canOrderProduct).sort(byName);
+    return `<div class="card product-list admin-order-products">${products.map(p=>{const price=selectedUnitPrice(p,"admin"),qty=Number(adminCart[p.id]||0);return `<div class="product ${qty>0?"selected":""}" data-admin-product-row="${p.id}"><div class="picon">${esc(p.icon)}</div><div class="product-main"><strong>${esc(p.name)}</strong><div class="price">${price>0?`${fmt(price)} MT`:"Preço a confirmar"}</div>${p.contactForFlavor?`<small class="contact-note">📞 Vamos confirmar sabor e disponibilidade.</small>`:""}<div class="product-options">${optionsMarkup(p,"admin")}</div></div><div class="qty"><button data-cart-minus="${p.id}" data-cart-mode="admin" aria-label="Diminuir quantidade de ${esc(p.name)}">−</button><span aria-live="polite" aria-label="Quantidade de ${esc(p.name)}">${qty}</span><button data-cart-plus="${p.id}" data-cart-mode="admin" aria-label="Aumentar quantidade de ${esc(p.name)}">+</button></div></div>`}).join("")}</div>`;
+  }
+  function refreshAdminOrderSummary(){const total=cartTotal(adminCart,"admin"),hasContent=orderHasContent(adminCart,"admin"),output=$("[data-admin-order-total]"),button=$("#saveAdminOrder");if(output)output.textContent=total>0?`${fmt(total)} MT`:(hasContent?"A confirmar":"0 MT");if(button)button.disabled=!hasContent}
+  function adminOrderModal(){
+    const users=state.users.filter(u=>u.active&&!u.legacyHidden).sort(byName);
+    adminCart={};adminCartChoices={};adminCustomRequest="";
+    openModal(`<div class="head" style="margin-top:0"><div><h3>Novo pedido pelo admin</h3><p>Regista o pedido de um utilizador ou de um convidado.</p></div><span style="font-size:34px">🧾</span></div>
+      <div class="form-row"><label for="adminOrderType">PEDIDO PARA</label><select id="adminOrderType"><option value="user">Utilizador cadastrado</option><option value="guest">Convidado</option></select></div>
+      <div id="adminRegisteredTarget"><div class="form-row"><label for="adminOrderUser">UTILIZADOR</label><select id="adminOrderUser">${users.map(u=>`<option value="${u.id}">${esc(u.avatar)} ${esc(u.name)} • ${fmt(userAvailable(u.id))} MT disponíveis</option>`).join("")}</select></div></div>
+      <div id="adminGuestTarget" hidden><div class="form-row"><label for="adminGuestName">NOME DO CONVIDADO *</label><input id="adminGuestName" maxlength="100" placeholder="Ex.: Mokizzow"></div><div class="form-row"><label for="adminGuestPhone">CONTACTO</label><input id="adminGuestPhone" maxlength="40" placeholder="Ex.: 84 000 0000"></div></div>
+      <div class="head"><div><h3>Escolhe o food</h3><p>O admin está a fazer o pedido por esta pessoa.</p></div></div>
+      ${adminProductPicker()}
+      <div class="custom-request card"><div class="custom-request-body" style="display:block"><label for="adminCustomRequest">PEDIDO FORA DA LISTA (OPCIONAL)</label><textarea id="adminCustomRequest" maxlength="160" placeholder="Ex.: Quero um bolo de chocolate..."></textarea><div class="custom-fee-alert" role="note"><span class="custom-fee-icon" aria-hidden="true">⚠️</span><div><strong>AVISO IMPORTANTE</strong><span>Pedidos fora da lista podem ter um acréscimo de <b>1 a 100 MT</b>, conforme o produto e a dificuldade de encontrar.</span></div></div></div></div>
+      <div class="review-total"><span>Total estimado</span><strong data-admin-order-total>0 MT</strong></div>
+      <div class="sheet-actions"><button class="secondary" data-close>Cancelar</button><button class="primary orange" id="saveAdminOrder" disabled>CRIAR PEDIDO</button></div>`);
   }
 
   function receiptOrders(dateKey){return state.orders.filter(o=>localDateKey(o.date)===dateKey&&o.status!=="cancelled")}
@@ -570,22 +518,16 @@
   }
   function adminProducts(){
     return `<div class="head" style="margin-top:2px"><div><h2>Produtos</h2><p>Cardápio, preços e disponibilidade.</p></div><button class="secondary" id="newProduct">+ Produto</button></div>
-      ${fridayNotice()}
-      <div class="card manage-list">${state.products.slice().sort(byName).map(p=>`<div class="manage-row"><div class="face">${esc(p.icon)}</div><div><strong>${esc(p.name)}</strong>${p.fridayOnly?`<span class="friday-tag">SÓ SEXTA</span>`:""}<small>${esc(p.category)} • ${p.price>0?`${fmt(p.price)} MT`:"Preço a confirmar"}${p.options?.length?" • Com opções":""} • ${p.active?"Ativo":"Oculto"}</small></div><div class="action-row"><button class="mini-btn" data-edit-product="${p.id}">Editar</button><button class="mini-btn ${p.active?"warn":"ok"}" data-toggle-product="${p.id}">${p.active?"Ocultar":"Ativar"}</button></div></div>`).join("")}</div>`;
+      <div class="card manage-list">${state.products.slice().sort(byName).map(p=>`<div class="manage-row"><div class="face">${esc(p.icon)}</div><div><strong>${esc(p.name)}</strong><small>${esc(p.category)} • ${p.price>0?`${fmt(p.price)} MT`:"Preço a confirmar"}${p.options?.length?" • Com opções":""} • ${p.active?"Ativo":"Oculto"}</small></div><div class="action-row"><button class="mini-btn" data-edit-product="${p.id}">Editar</button><button class="mini-btn ${p.active?"warn":"ok"}" data-toggle-product="${p.id}">${p.active?"Ocultar":"Ativar"}</button></div></div>`).join("")}</div>`;
   }
   function adminUsers(){
     return `<div class="head" style="margin-top:2px"><div><h2>Utilizadores</h2><p>Contas e saldos mensais.</p></div><button class="secondary" id="newUser">+ Utilizador</button></div>
       <div class="card manage-list">${state.users.filter(u=>!u.legacyHidden).sort(byName).map(u=>{const pinStatus=cloudPinStates.get(Number(u.id))||"loading",pinLabel={unset:"Sem PIN",pending:"PIN pendente",active:"PIN ativo",locked:"PIN bloqueado",blocked:"Conta bloqueada",loading:"A confirmar"}[pinStatus]||"Sem PIN";return `<div class="manage-row"><div class="face">${esc(u.avatar)}</div><div><strong>${esc(u.name)}</strong><small>Saldo: ${fmt(userAvailable(u.id))} MT • ${u.active?"Ativo":"Bloqueado"} • ${pinLabel}</small></div><div class="action-row">${pinStatus==="pending"?`<button class="mini-btn ok" data-approve-pin="${u.id}">Aprovar PIN</button>`:""}<button class="mini-btn" data-edit-user="${u.id}">Editar</button><button class="mini-btn ${u.active?"warn":"ok"}" data-toggle-user="${u.id}">${u.active?"Bloquear":"Ativar"}</button></div></div>`}).join("")}</div>`;
   }
   function adminSettings(){
-    const monthPledges=(state.donationPledges||[]).filter(p=>isThisMonth(p.date));
-    const pledgedTotal=monthPledges.reduce((sum,p)=>sum+Number(p.amount||0),0);
     return `<div class="head" style="margin-top:2px"><div><h2>Gestão</h2><p>Configurações gerais.</p></div><span style="font-size:39px">⚙️</span></div>
-      <div class="toggle-row"><div><strong>Pedidos sem cadastro</strong><small>Permitir que convidados façam pedidos rápidos.</small></div><button class="switch ${state.settings.guestOrdering?"on":""}" id="toggleGuest" role="switch" aria-checked="${state.settings.guestOrdering}" aria-label="Permitir pedidos sem cadastro"></button></div>
       <div class="head"><div><h3>Regra quando a mola acaba</h3><p>O admin decide se o pedido para ou entra nas dívidas.</p></div></div>
-      <div class="card balance-policy" role="group" aria-label="Regra para saldo insuficiente"><button class="policy-option ${state.settings.balancePolicy==="block"?"active":""}" data-balance-policy="block" aria-pressed="${state.settings.balancePolicy==="block"}"><span>🛑</span><div><strong>Bloquear pedidos</strong><small>Sem saldo, o food fica para o próximo mês.</small></div><b>${state.settings.balancePolicy==="block"?"ATIVA":""}</b></button><button class="policy-option ${state.settings.balancePolicy!=="block"?"active":""}" data-balance-policy="allow-negative" aria-pressed="${state.settings.balancePolicy!=="block"}"><span>😅</span><div><strong>Permitir saldo negativo</strong><small>O pedido entra marcado como “Em dívida”.</small></div><b>${state.settings.balancePolicy!=="block"?"ATIVA":""}</b></button></div>
-      <div class="head"><div><h3>Campanha mensal do padeiro</h3><p>O aviso aparece uma vez por mês para cada pessoa.</p></div></div>
-      <div class="card campaign-settings"><div class="campaign-title"><span>🚗</span><div><strong>Fundo do sonho</strong><small>A contribuição é descontada do saldo ao confirmar.</small></div></div><div class="pledge-summary"><span>Contribuições deste mês</span><strong>${fmt(pledgedTotal)} MT</strong><small>${monthPledges.length} ${monthPledges.length===1?"contribuição registada":"contribuições registadas"}</small></div>${monthPledges.length?`<div class="pledge-list">${monthPledges.slice(0,5).map(p=>`<div class="pledge-row"><div><strong>${esc(p.name||"Convidado")}</strong><small>${new Intl.DateTimeFormat("pt-PT",{day:"2-digit",month:"2-digit"}).format(new Date(p.date))}</small></div><b>${fmt(p.amount)} MT</b><button data-remove-pledge="${p.id}" aria-label="Remover contribuição de ${esc(p.name||"Convidado")}">×</button></div>`).join("")}</div>`:""}<div class="form-row"><label for="donationDay">DIA DO MÊS (1 A 28)</label><input id="donationDay" type="number" min="1" max="28" value="${Math.min(28,Math.max(1,Number(state.settings.donationDay)||5))}"></div><div class="form-row"><label for="donationGoal">OBJETIVO DA CAMPANHA</label><input id="donationGoal" maxlength="100" value="${esc(state.settings.donationGoal)}"></div><button class="primary orange" id="saveDonationSettings" style="margin-top:13px">GUARDAR CAMPANHA</button></div>
+      <div class="card balance-policy" role="group" aria-label="Regra para saldo insuficiente"><div class="policy-option active"><span>🛑</span><div><strong>Saldo obrigatório</strong><small>O pedido só entra quando o saldo disponível cobre o valor total.</small></div><b>ATIVA</b></div></div>
       <div class="head"><div><h3>Segurança administrativa</h3><p>Troca o PIN atual sem o publicar no frontend.</p></div></div>
       <div class="card campaign-settings"><div class="form-row"><label for="newAdminPin">NOVO PIN ADMINISTRATIVO</label><input id="newAdminPin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="4 a 8 números"></div><button class="primary dark" id="saveAdminPin">TROCAR PIN</button></div>
       <div class="head"><div><h3>Ações administrativas</h3><p>Ferramentas da demonstração.</p></div></div>
@@ -593,13 +535,12 @@
   }
 
   function render(){
+    normalizeTargetBalances();
     app.classList.toggle("admin-shell",state.session.mode==="admin");app.dataset.mode=state.session.mode||"entry";
     if(!state.session.mode)app.innerHTML=entryView();
     else if(state.session.mode==="user")app.innerHTML=userView();
-    else if(state.session.mode==="guest")app.innerHTML=guestView();
     else app.innerHTML=adminView();
-    document.title=state.session.mode==="admin"?"Gestão — O Pão de Cada Dia":state.session.mode==="guest"?"Pedido rápido — O Pão de Cada Dia":"O Pão de Cada Dia";
-    scheduleDonationNotice();
+    document.title=state.session.mode==="admin"?"Gestão — O Pão de Cada Dia":"O Pão de Cada Dia";
   }
   function renderWithFocus(selector){render();requestAnimationFrame(()=>$(selector)?.focus())}
 
@@ -640,12 +581,11 @@
     openModal(`<div class="confirm-card danger"><div class="feedback-emoji">🗑️</div><div class="eyebrow">ELIMINAR PEDIDO</div><h3>Apagar o pedido #${o.id}?</h3><p>${esc(owner.name)} • Esta ação remove o pedido e as contribuições ligadas a ele. Não pode ser desfeita.</p><div class="sheet-actions"><button class="secondary" data-close>Cancelar</button><button class="primary orange" id="confirmDeleteOrder" data-id="${o.id}">ELIMINAR PEDIDO</button></div></div>`);
   }
   function productModal(id=null){
-    const p=id?product(id):{name:"",icon:"🍞",price:0,category:"Outros",active:true,fridayOnly:false};
+    const p=id?product(id):{name:"",icon:"🍞",price:0,category:"Outros",active:true};
     openModal(`<div class="head" style="margin-top:0"><div><h3>${id?"Editar produto":"Novo produto"}</h3><p>Dados do cardápio.</p></div><span style="font-size:34px">${esc(p.icon)}</span></div>
       <div class="form-row"><label for="productName">NOME</label><input id="productName" value="${esc(p.name)}"></div>
       <div class="form-grid"><div class="form-row"><label for="productIcon">ÍCONE</label><input id="productIcon" value="${esc(p.icon)}" maxlength="4"></div><div class="form-row"><label for="productPrice">PREÇO (MT)</label><input id="productPrice" type="number" min="0" value="${p.price}"></div></div>
       <div class="form-row"><label for="productCategory">CATEGORIA</label><input id="productCategory" value="${esc(p.category)}"></div>
-      <label class="check-row"><input id="productFridayOnly" type="checkbox" ${p.fridayOnly?"checked":""}><span><strong>Só à sexta-feira</strong><small>Disponibilizar este produto automaticamente apenas às sextas.</small></span></label>
       <div class="sheet-actions"><button class="secondary" data-close>Cancelar</button><button class="primary" id="saveProduct" data-id="${id||""}">Guardar produto</button></div>`);
   }
   function userModal(id=null){
@@ -656,7 +596,7 @@
       <div class="form-row"><label for="userAvatar">AVATAR</label><input id="userAvatar" value="${esc(u.avatar)}" maxlength="4"></div>
       <div class="first-pin-note ${pinReady?"ready":""}"><span>${pinReady?"🔐":pinPending?"🕐":"🆕"}</span><div><strong>${pinReady?"PIN sincronizado e ativo":pinPending?"PIN à espera de aprovação":"PIN ainda não definido"}</strong><small>${pinReady?"Funciona em todos os dispositivos.":pinPending?"Aprova na lista de utilizadores.":"A pessoa vai pedir o PIN no primeiro acesso."}</small></div></div>
       ${id&&(pinReady||pinPending)?`<button class="secondary reset-pin" id="resetUserPin" data-id="${u.id}">REINICIAR PIN</button>`:""}
-      <div class="form-row"><label for="userBalance">SALDO MENSAL (MT)</label><input id="userBalance" type="number" min="0" value="${u.monthlyBalance}"></div>
+      <div class="form-row"><label for="userBalance">SALDO MENSAL (MT)</label><input id="userBalance" type="number" min="-1000000" value="${u.monthlyBalance}"></div>
       <div class="sheet-actions"><button class="secondary" data-close>Cancelar</button><button class="primary" id="saveUser" data-id="${id||""}">Guardar utilizador</button></div>`);
   }
   function rechargeModal(){
@@ -678,12 +618,26 @@
     const items=Object.entries(cart).filter(([id,q])=>q>0&&canOrderProduct(product(id))).map(([id,qty])=>{const p=product(id);return {productId:Number(id),qty,choices:{...selectedChoices(p,"user")},unitPrice:selectedUnitPrice(p,"user")}});
     const special=customRequest.trim();if(!items.length&&!special){cart={};render();toast("Esse food hoje bazou, boss. Escolhe outro.");return}
     const total=items.reduce((s,i)=>s+itemPrice(i)*i.qty,0),u=activeUser(),available=userAvailable(u.id),insufficient=total>available;
-    if(insufficient&&!forceDebt){balanceRuleModal(total,available);return}
-    if(insufficient&&state.settings.balancePolicy==="block"){balanceRuleModal(total,available);return}
-    const order={id:Math.max(0,...state.orders.map(o=>o.id))+1,type:"user",userId:u.id,date:new Date().toISOString(),updatedAt:new Date().toISOString(),pendingSync:true,status:insufficient?"debt":"pending",items,customRequest:special,needsContact:items.some(i=>product(i.productId)?.contactForFlavor||i.unitPrice===0)||Boolean(special)};order.syncKey=stableSyncKey("order",order);
+    if(insufficient||available<=0){balanceRuleModal(total,available);return}
+    const orderDate=orderSchedule==="tomorrow"?scheduledOrderDate():new Date().toISOString();
+    const order={id:Math.max(0,...state.orders.map(o=>o.id))+1,type:"user",userId:u.id,date:orderDate,updatedAt:new Date().toISOString(),pendingSync:true,status:insufficient?"debt":"pending",items,customRequest:special,needsContact:items.some(i=>product(i.productId)?.contactForFlavor||i.unitPrice===0)||Boolean(special)};order.syncKey=stableSyncKey("order",order);
     const cloudResult=cloudCredentials.userPin?await submitUserOperational(order):false;
     if(cloudResult?.reason==="insufficient"){balanceRuleModal(total,Number(cloudResult.available||available));return}
-    state.orders.unshift(order);cart={};cartChoices={};customRequest="";customOpen.user=false;save();if(cloudCredentials.userPin)await syncUserOperational(u.id,cloudCredentials.userPin);closeModal();page="home";render();celebrateOrder();if(insufficient)orderStatusFeedback("debt",order);
+    state.orders.unshift(order);cart={};cartChoices={};customRequest="";customOpen.user=false;orderSchedule="today";save();if(cloudCredentials.userPin)await syncUserOperational(u.id,cloudCredentials.userPin);closeModal();page="home";render();celebrateOrder();if(insufficient)orderStatusFeedback("debt",order);
+  }
+  async function saveAdminOrder(){
+    const type=$("#adminOrderType")?.value||"user",special=$("#adminCustomRequest")?.value.trim()||"",items=Object.entries(adminCart).filter(([id,q])=>q>0&&canOrderProduct(product(id))).map(([id,qty])=>{const p=product(id);return {productId:Number(id),qty,choices:{...selectedChoices(p,"admin")},unitPrice:selectedUnitPrice(p,"admin")}});
+    const hasContent=items.length>0||Boolean(special);if(!hasContent){toast("Escolhe pelo menos um produto ou escreve um pedido especial, boss.");return}
+    const selectedUser=type==="user"?user($("#adminOrderUser")?.value):null;
+    const guestName=type==="guest"?$("#adminGuestName")?.value.trim():"",guestPhone=type==="guest"?$("#adminGuestPhone")?.value.trim():"";
+    if(type==="user"&&!selectedUser){toast("Escolhe o utilizador do pedido.");return}
+    if(type==="guest"&&guestName.length<2){$("#adminGuestName")?.focus();toast("Mete o nome do convidado, boss.");return}
+    const needsContact=items.some(i=>product(i.productId)?.contactForFlavor||i.unitPrice===0)||Boolean(special);
+    if(type==="guest"&&needsContact&&!guestPhone){$("#adminGuestPhone")?.focus();toast("Mete um contacto para confirmarmos os detalhes.");return}
+    const total=items.reduce((sum,item)=>sum+itemPrice(item)*item.qty,0),available=selectedUser?userAvailable(selectedUser.id):0;
+    if(type==="user"&&(available<=0||total>available)){toast(`O utilizador só pode fazer pedidos com saldo suficiente. Disponível: ${fmt(available)} MT.`);return}
+    const order={id:Math.max(0,...state.orders.map(o=>Number(o.id)||0))+1,type,userId:selectedUser?.id||null,guestName:type==="guest"?guestName:null,guestPhone:type==="guest"?guestPhone:null,date:new Date().toISOString(),updatedAt:new Date().toISOString(),pendingSync:false,status:"pending",items,customRequest:special,needsContact,guestDonation:0};
+    order.syncKey=stableSyncKey("order",order);state.orders.unshift(order);save();const synced=await syncAdminOperational();closeModal();render();celebrateOrder();toast(synced?"Pedido criado e sincronizado em todos os dispositivos.":"Pedido criado neste aparelho. Será sincronizado quando houver ligação.");
   }
 
   document.addEventListener("click",async e=>{
@@ -691,10 +645,10 @@
     if(entry){
       if(entry.dataset.entry==="user")loginUserModal();
       if(entry.dataset.entry==="admin")loginAdminModal();
-      if(entry.dataset.entry==="guest"){state.session={mode:"guest",userId:null,guestName:"",guestPhone:""};save();render()}
       return;
     }
     if(e.target.closest("#openRanking")){rankingModal();return}
+    if(e.target.closest("[data-dismiss-announcement]")){announcementDismissed=true;$$('.announcement-banner').forEach(banner=>{banner.hidden=true});return}
     if(e.target.closest("[data-close]")){closeModal();return}
     if(e.target.closest("[data-logout]")){logout();return}
 
@@ -702,6 +656,7 @@
     const ad=e.target.closest("[data-admin-section]");if(ad){adminSection=ad.dataset.adminSection;if(adminSection==="users")await loadAdminPinStates();await hydrateAdminOperational();renderWithFocus(`[data-admin-section="${adminSection}"]`);return}
     const cat=e.target.closest("[data-category]");if(cat){category=cat.dataset.category;renderWithFocus(`[data-category="${category}"]`);return}
     const of=e.target.closest("[data-order-filter]");if(of){orderFilter=of.dataset.orderFilter;renderWithFocus(`[data-order-filter="${orderFilter}"]`);return}
+    const schedule=e.target.closest("[data-order-schedule]");if(schedule){orderSchedule=schedule.dataset.orderSchedule;renderWithFocus(`[data-order-schedule="${orderSchedule}"]`);return}
     if(e.target.id==="clearAdminOrderDate"){adminOrderDate="";renderWithFocus("#adminOrderDate");return}
     const customToggle=e.target.closest("[data-toggle-custom]");if(customToggle){const mode=customToggle.dataset.toggleCustom;customOpen[mode]=!customOpen[mode];renderWithFocus(`[data-toggle-custom="${mode}"]`);return}
     if(e.target.closest("#openDailyReceipt")){dailyReceiptModal();return}
@@ -718,13 +673,10 @@
     if(e.target.id==="copyRechargeNumber"){
       copyText(e.target.dataset.number).then(()=>{e.target.textContent="✅ NÚMERO COPIADO";toast(`Número copiado. Transfere ${fmt(Number(e.target.dataset.amount))} MT e manda o comprovativo.`)}).catch(()=>{toast("Não deu para copiar. Usa o número 876 760 317.")});return;
     }
-    if(e.target.id==="reviewGuestOrder"){
-      const name=$("#guestName"),phone=$("#guestPhone");if(!name.value.trim()){name.setAttribute("aria-invalid","true");name.focus();toast("Diz o teu nome primeiro, boss.");return}name.removeAttribute("aria-invalid");
-      if(cartNeedsContact(guestCart,"guest")&&!phone.value.trim()){phone.setAttribute("aria-invalid","true");phone.focus();toast("Mete um contacto para confirmarmos os detalhes, boss.");return}phone.removeAttribute("aria-invalid");reviewOrderModal("guest");return
-    }
+    if(e.target.id==="newAdminOrder"){adminOrderModal();return}
 
-    const plus=e.target.closest("[data-cart-plus]");if(plus){const mode=plus.dataset.cartMode,id=plus.dataset.cartPlus,target=mode==="guest"?guestCart:cart;target[id]=(target[id]||0)+1;renderWithFocus(`[data-cart-plus="${id}"][data-cart-mode="${mode}"]`);return}
-    const minus=e.target.closest("[data-cart-minus]");if(minus){const mode=minus.dataset.cartMode,id=minus.dataset.cartMinus,target=mode==="guest"?guestCart:cart;target[id]=Math.max(0,(target[id]||0)-1);renderWithFocus(`[data-cart-minus="${id}"][data-cart-mode="${mode}"]`);return}
+    const plus=e.target.closest("[data-cart-plus]");if(plus){const mode=plus.dataset.cartMode,id=plus.dataset.cartPlus,target=mode==="admin"?adminCart:cart;target[id]=(target[id]||0)+1;if(mode==="admin"){const row=plus.closest("[data-admin-product-row]");if(row){$(".qty span",row).textContent=target[id];row.classList.add("selected")}refreshAdminOrderSummary()}else renderWithFocus(`[data-cart-plus="${id}"][data-cart-mode="${mode}"]`);return}
+    const minus=e.target.closest("[data-cart-minus]");if(minus){const mode=minus.dataset.cartMode,id=minus.dataset.cartMinus,target=mode==="admin"?adminCart:cart;target[id]=Math.max(0,(target[id]||0)-1);if(mode==="admin"){const row=minus.closest("[data-admin-product-row]");if(row){$(".qty span",row).textContent=target[id];row.classList.toggle("selected",target[id]>0)}refreshAdminOrderSummary()}else renderWithFocus(`[data-cart-minus="${id}"][data-cart-mode="${mode}"]`);return}
 
     if(e.target.id==="confirmUserLogin"){
       const u=user($("#loginUser").value);if(!u)return;
@@ -749,14 +701,7 @@
     }
     if(e.target.id==="submitUserOrder"){await placeUserOrder();return}
     if(e.target.id==="confirmDebtOrder"){await placeUserOrder(true);return}
-    if(e.target.id==="submitGuestOrder"){
-      const name=$("#guestName").value.trim(),phone=$("#guestPhone").value.trim();
-      if(!name){toast("Diz o teu nome primeiro, boss.");return}
-      const items=Object.entries(guestCart).filter(([id,q])=>q>0&&canOrderProduct(product(id))).map(([id,qty])=>{const p=product(id);return {productId:Number(id),qty,choices:{...selectedChoices(p,"guest")},unitPrice:selectedUnitPrice(p,"guest")}});
-      const special=guestCustomRequest.trim();if(!items.length&&!special){guestCart={};render();toast("Esse food hoje bazou. Escolhe outro, boss.");return}
-      const order={id:Math.max(0,...state.orders.map(o=>o.id))+1,type:"guest",guestName:name,guestPhone:phone,date:new Date().toISOString(),updatedAt:new Date().toISOString(),pendingSync:true,status:"pending",items,customRequest:special,needsContact:items.some(i=>product(i.productId)?.contactForFlavor||i.unitPrice===0)||Boolean(special),guestDonation:0};order.syncKey=stableSyncKey("order",order);
-      state.orders.unshift(order);guestCart={};guestCartChoices={};guestCustomRequest="";customOpen.guest=false;save();const submitted=await submitGuestOperational(order);if(!submitted){toast("O pedido ficou neste aparelho, mas ainda não chegou ao servidor. Verifica a ligação.")}guestDonationModal(order);celebrateOrder();return;
-    }
+    if(e.target.id==="saveAdminOrder"){await saveAdminOrder();return}
 
     const ao=e.target.closest("[data-admin-order]");if(ao){editOrderModal(ao.dataset.adminOrder);return}
     const removeOrder=e.target.closest("[data-delete-order]");if(removeOrder){deleteOrderConfirmModal(removeOrder.dataset.deleteOrder);return}
@@ -776,7 +721,7 @@
     const ep=e.target.closest("[data-edit-product]");if(ep){productModal(Number(ep.dataset.editProduct));return}
     const tp=e.target.closest("[data-toggle-product]");if(tp){const p=product(tp.dataset.toggleProduct),active=!p.active,saved=await cloudRpc("admin_toggle_product",{p_admin_pin:cloudCredentials.adminPin,p_product_id:Number(tp.dataset.toggleProduct),p_active:active}).catch(()=>false);if(!saved){toast("Não deu para atualizar o produto no servidor.");return}p.active=active;p.updatedAt=new Date().toISOString();save();render();return}
     if(e.target.id==="saveProduct"){
-      const id=Number(e.target.dataset.id),name=$("#productName").value.trim(),icon=$("#productIcon").value.trim()||"🍞",price=Number($("#productPrice").value),category=$("#productCategory").value.trim()||"Outros",fridayOnly=$("#productFridayOnly").checked,existing=id?product(id):null,next={id:id||Math.max(0,...state.products.map(p=>p.id))+1,name,icon,price,category,active:existing?.active!==false,fridayOnly,contactForFlavor:Boolean(existing?.contactForFlavor),options:existing?.options||[]};
+      const id=Number(e.target.dataset.id),name=$("#productName").value.trim(),icon=$("#productIcon").value.trim()||"🍞",price=Number($("#productPrice").value),category=$("#productCategory").value.trim()||"Outros",existing=id?product(id):null,next={id:id||Math.max(0,...state.products.map(p=>p.id))+1,name,icon,price,category,active:existing?.active!==false,contactForFlavor:Boolean(existing?.contactForFlavor),options:existing?.options||[]};
       if(!name||price<0){toast("Preenche nome e preço.");return}
       const saved=await cloudRpc("admin_upsert_product",{p_admin_pin:cloudCredentials.adminPin,p_product:next}).catch(()=>false);if(!saved){toast("Não deu para guardar o produto no servidor.");return}
       if(existing)Object.assign(existing,next,{updatedAt:new Date().toISOString()});else state.products.push({...next,updatedAt:new Date().toISOString()});
@@ -787,7 +732,7 @@
     const tu=e.target.closest("[data-toggle-user]");if(tu){const u=user(tu.dataset.toggleUser);u.active=!u.active;u.updatedAt=new Date().toISOString();save();await syncAdminOperational();render();return}
     if(e.target.id==="saveUser"){
       const id=Number(e.target.dataset.id),name=$("#userName").value.trim(),avatar=$("#userAvatar").value.trim()||"🙂",monthlyBalance=Number($("#userBalance").value);
-      if(!name||monthlyBalance<0){toast("Preenche os dados corretamente.");return}
+      if(!name||monthlyBalance<-1000000){toast("Preenche os dados corretamente.");return}
       const uid=id||Math.max(0,...state.users.map(u=>u.id))+1;if(id){Object.assign(user(id),{name,avatar,monthlyBalance})}else state.users.push({id:uid,name,avatar,pin:"",pinConfigured:false,monthlyBalance,active:true});
       const cloudSaved=await cloudRpc("admin_upsert_app_user",{p_admin_pin:cloudCredentials.adminPin,p_user_id:uid,p_user_name:name,p_avatar:avatar}).catch(()=>false);if(!cloudSaved){toast("Não deu para guardar este utilizador no servidor.");return}const savedUser=user(uid);if(savedUser)savedUser.updatedAt=new Date().toISOString();cloudPinStates.set(uid,cloudPinStates.get(uid)||"unset");save();await syncAdminOperational();closeModal();render();toast("Utilizador e saldo guardados em todos os dispositivos.");return;
     }
@@ -800,18 +745,7 @@
       const resetOk=await cloudRpc("reset_user_pin",{p_admin_pin:cloudCredentials.adminPin,p_user_id:u.id}).catch(()=>false);if(!resetOk){toast("Não deu para reiniciar o PIN no servidor.");return}u.pin="";u.pinConfigured=false;delete u.pinSetAt;cloudPinStates.set(Number(u.id),"unset");save();closeModal();render();toast(`PIN de ${u.name} reiniciado em todos os dispositivos.`);return;
     }
     const approvePin=e.target.closest("[data-approve-pin]");if(approvePin){const uid=Number(approvePin.dataset.approvePin),approved=await cloudRpc("approve_user_pin",{p_admin_pin:cloudCredentials.adminPin,p_user_id:uid}).catch(()=>false);if(!approved){toast("Não deu para aprovar este PIN.");return}cloudPinStates.set(uid,"active");render();toast(`PIN de ${user(uid)?.name||"utilizador"} aprovado. Já pode entrar! 🔐`);return}
-    if(e.target.id==="toggleGuest"){
-      const enabled=!state.settings.guestOrdering;
-      const saved=await cloudRpc("admin_set_guest_ordering",{p_admin_pin:cloudCredentials.adminPin,p_enabled:enabled}).catch(()=>false);
-      if(!saved){toast("Não deu para atualizar os pedidos sem cadastro.");return}
-      state.settings.guestOrdering=enabled;touchSettings();save();render();toast(enabled?"Pedidos sem cadastro ativados.":"Pedidos sem cadastro desativados.");return
-    }
     const policy=e.target.closest("[data-balance-policy]");if(policy){state.settings.balancePolicy=policy.dataset.balancePolicy;touchSettings();save();void syncAdminOperational().catch(()=>{});render();toast(state.settings.balancePolicy==="block"?"Sem mola, o pedido fica bloqueado. 🛑":"Saldo negativo permitido. Entrou no território das dívidas. 😅");return}
-    if(e.target.id==="saveDonationSettings"){
-      const day=Math.min(28,Math.max(1,Number($("#donationDay").value)||5)),goal=$("#donationGoal").value.trim();
-      if(!goal){toast("Escreve o objetivo da campanha.");return}
-      state.settings.donationDay=day;state.settings.donationGoal=goal;touchSettings();save();void syncAdminOperational().catch(()=>{});render();toast(`Campanha guardada para o dia ${day}. 🚗`);return;
-    }
     if(e.target.id==="saveAdminPin"){
       const newPin=$("#newAdminPin").value.trim();if(!/^\d{4,8}$/.test(newPin)){toast("O novo PIN deve ter 4 a 8 números.");return}
       const changed=await cloudRpc("admin_change_pin",{p_current_pin:cloudCredentials.adminPin,p_new_pin:newPin}).catch(()=>false);if(!changed){toast("Não foi possível trocar o PIN. Tenta novamente.");return}
@@ -822,26 +756,6 @@
       if(pledge?.orderId||pledge?.orderSyncKey){const order=state.orders.find(o=>Number(o.id)===Number(pledge.orderId)||o.syncKey===pledge.orderSyncKey);if(order){order.guestDonation=0;order.updatedAt=new Date().toISOString()}}
       state.donationPledges=state.donationPledges.filter(p=>p.id!==Number(removePledge.dataset.removePledge));save();if(pledge?.syncKey)await cloudRpc("admin_delete_donation",{p_admin_pin:cloudCredentials.adminPin,p_sync_key:pledge.syncKey}).catch(()=>false);await syncAdminOperational();render();toast(pledge?.userId?"Contribuição removida e saldo devolvido.":pledge?.orderId?"Contribuição removida do pedido.":"Contribuição diária removida.");return;
     }
-    if(e.target.id==="ackDonation"){
-      const amount=Number($("#donationRange")?.value||0),u=activeUser(),available=userAvailable(u.id);if(amount<=0)return;
-      if(amount>available){toast("Eish, boss! Não há mola suficiente para essa txova.");return}
-      const pledge={id:Date.now(),userId:u.id,name:u.name,amount,date:new Date().toISOString()};pledge.syncKey=stableSyncKey("donation",pledge);
-      const cloudResult=await submitUserDonation(pledge);
-      if(!cloudResult?.ok&&cloudResult?.reason!=="offline"){toast("A contribuição não entrou: o saldo foi atualizado noutro dispositivo.");return}
-      state.donationPledges.unshift(pledge);save();closeModal();render();toast(cloudResult?.ok?`${fmt(amount)} MT já txovaram o sonho! Ficaram ${fmt(userAvailable(u.id))} MT. 🥖💛`:"Contribuição guardada localmente; será sincronizada quando voltar a ligação.");return}
-    if(e.target.id==="skipGuestDonation"){const order=state.orders.find(o=>o.id===Number(e.target.dataset.order));if(order)guestOrderSuccess(order);return}
-    if(e.target.id==="confirmGuestDonation"){
-      const amount=Number($("#guestDonationRange")?.value||0),order=state.orders.find(o=>o.id===Number(e.target.dataset.order));if(!order||amount<=0)return;
-      donationPaymentModal(amount,order.id);return;
-    }
-    if(e.target.id==="startDailyGuestDonation"){const amount=Number($("#dailyGuestDonationRange")?.value||0);if(amount>0)donationPaymentModal(amount);return}
-    if(e.target.id==="copyDonationNumber"){
-      const amount=Number(e.target.dataset.amount),orderId=Number(e.target.dataset.order),order=orderId?state.orders.find(o=>o.id===orderId):null,name=order?.guestName||state.session.guestName||"Convidado";
-      if(!e.target.dataset.registered){if(order)order.guestDonation=amount;const pledge={id:Date.now(),orderId:order?.id||null,orderSyncKey:order?.syncKey||null,userId:null,name,amount,date:new Date().toISOString()};pledge.syncKey=stableSyncKey("donation",pledge);state.donationPledges.unshift(pledge);save();syncGuestDonationOperational(pledge);e.target.dataset.registered="true"}
-      const finish=$("#finishDonationPayment");finish.disabled=false;finish.textContent="TXOVA REGISTADA ✅";
-      copyText(e.target.dataset.number).then(()=>{e.target.textContent="✅ NÚMERO COPIADO";toast(`${fmt(amount)} MT registados. Está nice, boss!`)}).catch(()=>{e.target.textContent="✅ TXOVA REGISTADA";toast("A txova entrou. Copia o número à mão, boss.")});return;
-    }
-    if(e.target.id==="finishDonationPayment"){const order=state.orders.find(o=>o.id===Number(e.target.dataset.order));if(order)guestOrderSuccess(order);else{closeModal();render();toast("Maningue obrigado pela força, boss! 🥖💛")}return}
     if(e.target.id==="adminRecharge"){rechargeModal();return}
     if(e.target.id==="saveRecharge"){
       const amount=Number($("#rechargeAmount").value),uid=Number($("#rechargeUser").value),note=$("#rechargeNote").value.trim()||"Recarga";
@@ -853,26 +767,16 @@
   });
 
   document.addEventListener("input",e=>{
-    if(e.target.id==="guestName")state.session.guestName=e.target.value;
-    if(e.target.id==="guestPhone")state.session.guestPhone=e.target.value;
-    if(e.target.matches("[data-custom-mode]")){const mode=e.target.dataset.customMode;if(mode==="guest")guestCustomRequest=e.target.value;else customRequest=e.target.value;refreshCheckout(mode);return}
+    if(e.target.matches("[data-custom-mode]")){const mode=e.target.dataset.customMode;if(mode==="admin")adminCustomRequest=e.target.value;else customRequest=e.target.value;refreshCheckout(mode);return}
+    if(e.target.id==="adminCustomRequest"){adminCustomRequest=e.target.value;refreshAdminOrderSummary();return}
     if(e.target.matches("[data-order-price]")){const total=$$("[data-order-price]").reduce((sum,input)=>sum+(Math.max(0,Number(input.value)||0)*Number(input.dataset.qty||1)),0)+Number($("#editableOrderTotal")?.dataset.donation||0),output=$("#editableOrderTotal");if(output)output.textContent=`${fmt(total)} MT`;return}
-    if(e.target.id==="donationRange"){
-      const amount=Number(e.target.value),available=Number(e.target.closest(".donation-picker")?.dataset.available||0),button=$("#ackDonation"),tooHigh=amount>available;$("#donationAmount").textContent=`${fmt(amount)} MT`;button.disabled=amount<=0||tooHigh;button.textContent=tooHigh?"A MOLA NÃO CHEGA":amount>0?`TXOVAR ${fmt(amount)} MT 🚗`:"ESCOLHE A MOLA";
-      e.target.style.setProperty("--range-progress",`${amount/10}%`);e.target.setAttribute("aria-valuetext",`${fmt(amount)} MT`);
-    }
-    if(e.target.id==="guestDonationRange"){
-      const amount=Number(e.target.value),button=$("#confirmGuestDonation");$("#guestDonationAmount").textContent=`${fmt(amount)} MT`;button.disabled=amount<=0;button.textContent=amount>0?`TXOVAR ${fmt(amount)} MT 🚗`:"ESCOLHE A MOLA";e.target.style.setProperty("--range-progress",`${amount}%`);e.target.setAttribute("aria-valuetext",`${fmt(amount)} MT`);
-    }
-    if(e.target.id==="dailyGuestDonationRange"){
-      const amount=Number(e.target.value),button=$("#startDailyGuestDonation");$("#dailyGuestDonationAmount").textContent=`${fmt(amount)} MT`;button.disabled=amount<=0;button.textContent=amount>0?`MANDAR ${fmt(amount)} MT 💛`:"ESCOLHE A MOLA";e.target.style.setProperty("--range-progress",`${amount}%`);e.target.setAttribute("aria-valuetext",`${fmt(amount)} MT`);
-    }
   });
   document.addEventListener("change",e=>{
     if(e.target.id==="loginUser"){refreshLoginPinFields();return}
     if(e.target.id==="dailyReceiptDate"){dailyReceiptModal(e.target.value||localDateKey());return}
     if(e.target.id==="adminOrderDate"){adminOrderDate=e.target.value;renderWithFocus("#adminOrderDate");return}
-    if(e.target.matches("[data-product-option]")){const mode=e.target.dataset.cartMode,store=choiceStore(mode),id=e.target.dataset.productOption,key=e.target.dataset.optionKey;if(!store[id])store[id]={};store[id][key]=e.target.value;renderWithFocus(`[data-product-option="${id}"][data-option-key="${key}"][data-cart-mode="${mode}"]`)}
+    if(e.target.id==="adminOrderType"){const guest=e.target.value==="guest";$("#adminRegisteredTarget").hidden=guest;$("#adminGuestTarget").hidden=!guest;return}
+    if(e.target.matches("[data-product-option]")){const mode=e.target.dataset.cartMode,store=choiceStore(mode),id=e.target.dataset.productOption,key=e.target.dataset.optionKey;if(!store[id])store[id]={};store[id][key]=e.target.value;if(mode==="admin"){const row=e.target.closest("[data-admin-product-row]"),price=$(".price",row);if(price)price.textContent=selectedUnitPrice(product(id),mode)>0?`${fmt(selectedUnitPrice(product(id),mode))} MT`:"Preço a confirmar";refreshAdminOrderSummary();return}renderWithFocus(`[data-product-option="${id}"][data-option-key="${key}"][data-cart-mode="${mode}"]`)}
   });
   $("#modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
   window.addEventListener("keydown",e=>{const modal=$("#modal");if(!modal.classList.contains("open"))return;if(e.key==="Escape"){e.preventDefault();closeModal();return}if(e.key==="Tab"){const focusable=$$('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[href],[tabindex]:not([tabindex="-1"])',modal).filter(el=>el.offsetParent!==null);if(!focusable.length)return;const first=focusable[0],last=focusable[focusable.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}});
@@ -884,12 +788,10 @@
     if($(".ranking-modal"))rankingModal();else render();
   });
   let cloudRefreshBusy=false;
-  async function refreshOperationalState(){if(cloudRefreshBusy||document.hidden)return;cloudRefreshBusy=true;try{let refreshed=false;if(state.session.mode==="user"&&cloudCredentials.userPin){const sessionStatus=await userSessionStatus(state.session.userId,cloudCredentials.userPin);if(sessionStatus==="blocked"){logout();toast("A tua conta foi bloqueada pelo administrador.");return}if(sessionStatus!=="ok")return;await syncUserOperational(state.session.userId,cloudCredentials.userPin);refreshed=await hydrateUserOperational(state.session.userId,cloudCredentials.userPin)}else if(state.session.mode==="admin"&&cloudCredentials.adminPin){await syncAdminOperational();refreshed=await hydrateAdminOperational()}else{await flushPendingGuestOrders();refreshed=await hydratePublicBootstrap()}if(refreshed&&!$("#modal").classList.contains("open"))render()}finally{cloudRefreshBusy=false}}
+  async function refreshOperationalState(){if(cloudRefreshBusy||document.hidden)return;cloudRefreshBusy=true;try{let refreshed=false;if(state.session.mode==="user"&&cloudCredentials.userPin){const sessionStatus=await userSessionStatus(state.session.userId,cloudCredentials.userPin);if(sessionStatus==="blocked"){logout();toast("A tua conta foi bloqueada pelo administrador.");return}if(sessionStatus!=="ok")return;await syncUserOperational(state.session.userId,cloudCredentials.userPin);refreshed=await hydrateUserOperational(state.session.userId,cloudCredentials.userPin)}else if(state.session.mode==="admin"&&cloudCredentials.adminPin){await syncAdminOperational();refreshed=await hydrateAdminOperational()}else{refreshed=await hydratePublicBootstrap()}if(refreshed&&!$("#modal").classList.contains("open"))render()}finally{cloudRefreshBusy=false}}
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)void refreshOperationalState()});
   setInterval(refreshOperationalState,20000);
-  let lastFridayMode=isFridayMode();
-  setInterval(()=>{const current=isFridayMode();if(current!==lastFridayMode){lastFridayMode=current;category="Todos";cart={};guestCart={};cartChoices={};guestCartChoices={};render();toast(current?"Modo Sexta-feira ativado! 🎉":"Modo Sexta-feira encerrado.")}},60000);
-  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=51").catch(()=>{});}
+  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=68").catch(()=>{});}
   render();
   hydratePublicBootstrap().then(ok=>{if(ok&&!state.session.mode)render()});
 })();

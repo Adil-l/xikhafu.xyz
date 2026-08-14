@@ -1,0 +1,4 @@
+-- Remove discontinued products from the shared menu.
+delete from public.app_products
+where product_id in (3, 4, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+                     24, 25, 26, 27, 28, 29, 30, 31, 32);
