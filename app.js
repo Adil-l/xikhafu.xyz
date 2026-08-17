@@ -87,6 +87,7 @@
   let orderFilter = "Todos";
   let adminOrderDate = "";
   let adminSection = "dashboard";
+  let pendingAdminDeduction = null;
   let orderSchedule = "today";
   let modalOpener = null;
   let modalCloseAction = null;
@@ -186,7 +187,7 @@
   async function syncAdminOperational(){
     if(!cloudCredentials.adminPin)return false;ensureOperationalKeys();
     const pendingRecharges=(state.recharges||[]).filter(recharge=>recharge.pendingSync);
-    if(pendingRecharges.length)await Promise.allSettled(pendingRecharges.map(submitAdminRecharge));
+    if(pendingRecharges.length){const results=await Promise.allSettled(pendingRecharges.map(submitAdminRecharge));if(results.some(result=>result.status==="rejected"||!result.value?.ok))return false}
     const payload={settings:{...operationalSettingsPayload(),updatedAt:state.settings.updatedAt||state.settings.cloudOperationalUpdatedAt||new Date(0).toISOString()},users:state.users.filter(u=>!u.legacyHidden).map(u=>({user_id:Number(u.id),monthly_balance:Number(u.monthlyBalance||0),balance_reset_at:u.balanceResetAt||null,active:Boolean(u.active),updated_at:u.updatedAt||u.cloudUpdatedAt||new Date(0).toISOString()})),orders:state.orders.map(operationalOrderPayload),recharges:(state.recharges||[]).map(r=>({sync_key:stableSyncKey("recharge",r),user_id:Number(r.userId),created_at:r.date,amount:Number(r.amount||0),note:r.note||"Recarga",updated_at:r.updatedAt||r.date})),donations:(state.donationPledges||[]).map(operationalDonationPayload)};
     try{return await cloudRpc("admin_sync_operational_state",{p_admin_pin:cloudCredentials.adminPin,payload})}catch{return false}
   }
@@ -199,6 +200,7 @@
   }
   async function submitUserOperational(order){try{const result=await cloudRpc("submit_user_order",{p_user_id:Number(order.userId),p_pin:cloudCredentials.userPin,payload:{syncKey:order.syncKey,date:order.date,items:order.items||[],customRequest:order.customRequest||"",needsContact:Boolean(order.needsContact)}});if(!result?.ok)return result||false;order.id=Number(result.id);order.status=result.status||order.status;order.pendingSync=false;order.updatedAt=new Date().toISOString();save();return result}catch{return false}}
   async function submitAdminRecharge(recharge){try{const result=await cloudRpc("admin_add_recharge",{p_admin_pin:cloudCredentials.adminPin,payload:{syncKey:recharge.syncKey,userId:Number(recharge.userId),amount:Number(recharge.amount),note:recharge.note||"Recarga"}});if(!result?.ok)return result||false;recharge.id=Number(result.id)||recharge.id;recharge.date=result.date||recharge.date;recharge.updatedAt=new Date().toISOString();recharge.pendingSync=false;save();return result}catch{return false}}
+  async function submitAdminDeduction(movement){try{return await cloudRpc("admin_deduct_balance",{p_admin_pin:cloudCredentials.adminPin,payload:{syncKey:movement.syncKey,userId:Number(movement.userId),amount:Math.abs(Number(movement.amount)),note:movement.note||"Desconto administrativo"}})}catch{return false}}
   async function userSessionStatus(id,pin){try{return await cloudRpc("user_session_status",{p_user_id:Number(id),p_pin:pin})}catch{return null}}
   function toast(text){const e=$("#toast");e.textContent="";requestAnimationFrame(()=>{e.textContent=text;e.classList.add("show")});clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),3600)}
   function focusMain(){requestAnimationFrame(()=>$("#main")?.focus())}
@@ -209,9 +211,11 @@
   function empty(emoji,text){return `<div class="empty"><div class="emoji">${emoji}</div><p>${text}</p></div>`}
   function afterBalanceReset(id,date){const reset=user(id)?.balanceResetAt;return !reset||new Date(date)>=new Date(reset)}
   function userSpent(id){return state.orders.filter(o=>o.type==="user"&&o.userId===Number(id)&&isThisMonth(o.date)&&afterBalanceReset(id,o.date)&&o.status!=="cancelled").reduce((s,o)=>s+orderTotal(o),0)}
-  function userRecharge(id){return state.recharges.filter(r=>r.userId===Number(id)&&isThisMonth(r.date)&&afterBalanceReset(id,r.date)).reduce((s,r)=>s+r.amount,0)}
+  function userRecharge(id){return state.recharges.filter(r=>r.userId===Number(id)&&Number(r.amount)>0&&isThisMonth(r.date)&&afterBalanceReset(id,r.date)).reduce((s,r)=>s+Number(r.amount||0),0)}
+  function userDeduction(id){return state.recharges.filter(r=>r.userId===Number(id)&&Number(r.amount)<0&&isThisMonth(r.date)&&afterBalanceReset(id,r.date)).reduce((s,r)=>s+Math.abs(Number(r.amount||0)),0)}
   function userDonation(id){return (state.donationPledges||[]).filter(p=>p.userId===Number(id)&&isThisMonth(p.date)&&afterBalanceReset(id,p.date)).reduce((s,p)=>s+Number(p.amount||0),0)}
-  function userAvailable(id){const u=user(id);return u.monthlyBalance+userRecharge(id)-userSpent(id)-userDonation(id)}
+  function userAvailable(id){const u=user(id);return Number(u?.monthlyBalance||0)+userRecharge(id)-userDeduction(id)-userSpent(id)-userDonation(id)}
+  function balanceProgress(used,funds){return funds>0?Math.max(0,Math.min(100,Number(used||0)/funds*100)):100}
   function userOrdersAll(id){return state.orders.filter(o=>o.type==="user"&&o.userId===Number(id)&&o.status!=="cancelled")}
   function userItemQty(id,test){return userOrdersAll(id).reduce((sum,o)=>sum+o.items.reduce((total,item)=>{const p=product(item.productId);return total+(p&&test(p)?Number(item.qty):0)},0),0)}
   function userAllSpent(id){return userOrdersAll(id).reduce((sum,o)=>sum+orderTotal(o),0)}
@@ -316,13 +320,13 @@
   function userHome(u){
     const orders=state.orders.filter(o=>o.type==="user"&&o.userId===u.id&&isThisMonth(o.date));
     const qty=id=>orders.reduce((s,o)=>s+o.items.filter(i=>i.productId===id).reduce((a,i)=>a+i.qty,0),0);
-    const spent=userSpent(u.id),recharged=userRecharge(u.id),donated=userDonation(u.id),available=userAvailable(u.id),funds=u.monthlyBalance+recharged;
+    const spent=userSpent(u.id),recharged=userRecharge(u.id),deducted=userDeduction(u.id),donated=userDonation(u.id),available=userAvailable(u.id),funds=Number(u.monthlyBalance||0)+recharged;
     return `<div class="hero"><div class="eyebrow">Então, ${esc(u.name)}, está nice?</div><h2>Vamos txovar essa fome? 😋</h2><p>Escolhe o food, controla a mola e acompanha os teus pedidos.</p><div class="hero-chip">💬 ${esc(openingPhrase)}</div></div>
       <div class="stats"><div class="stat"><span class="emoji" aria-hidden="true">🥖</span><strong>${qty(1)}</strong><span>Breads</span></div><div class="stat"><span class="emoji" aria-hidden="true">🥟</span><strong>${qty(2)}</strong><span>Badjias</span></div><div class="stat"><span class="emoji" aria-hidden="true">🧾</span><strong>${orders.length}</strong><span>Pedidos</span></div></div>
       <div class="head"><div><h3>Meu saldo</h3><p>${monthName}</p></div><button class="link" data-user-page="balance">Ver detalhes →</button></div>
       <div class="card balance"><div class="balance-top"><div><div class="label">Saldo disponível</div><div class="money">${fmt(available)} <small>MT</small></div></div><div class="wallet">👛</div></div>
-      <div class="split cols-4"><div><div class="label">Saldo mensal</div><div class="mini">${fmt(u.monthlyBalance)} MT</div></div><div><div class="label">Recargas</div><div class="mini available">+${fmt(recharged)} MT</div></div><div><div class="label">Compras</div><div class="mini spent">−${fmt(spent)} MT</div></div><div><div class="label">Ao padeiro</div><div class="mini donation-out">−${fmt(donated)} MT</div></div></div>
-      <div class="progress"><span style="width:${funds?Math.min(100,(spent+donated)/funds*100):100}%"></span></div><div class="tip ${available<=0?"danger-tip":available<=100?"warning-tip":""}"><span>${available<=0?"🚨":available<=100?"😅":"💡"}</span><span>${balanceMessage(available)}</span></div></div>
+      <div class="split cols-5"><div><div class="label">Saldo mensal</div><div class="mini">${fmt(u.monthlyBalance)} MT</div></div><div><div class="label">Recargas</div><div class="mini available">+${fmt(recharged)} MT</div></div><div><div class="label">Descontos</div><div class="mini spent">−${fmt(deducted)} MT</div></div><div><div class="label">Compras</div><div class="mini spent">−${fmt(spent)} MT</div></div><div><div class="label">Ao padeiro</div><div class="mini donation-out">−${fmt(donated)} MT</div></div></div>
+      <div class="progress"><span style="width:${balanceProgress(spent+deducted+donated,funds)}%"></span></div><div class="tip ${available<=0?"danger-tip":available<=100?"warning-tip":""}"><span>${available<=0?"🚨":available<=100?"😅":"💡"}</span><span>${balanceMessage(available)}</span></div></div>
       <div class="head"><div><h3>Atalhos, boss</h3><p>O mambo está todo aqui.</p></div></div>
       <div class="quick-grid"><button class="quick" data-user-page="menu"><span class="qicon">🛒</span><strong>Mandar pedido</strong><small>Escolher food e quantidades.</small></button><button class="quick" data-user-page="orders"><span class="qicon">📋</span><strong>Meus pedidos</strong><small>Ver onde anda o teu food.</small></button></div>
       <div class="head"><div><h3>Últimos pedidos</h3><p>Os teus pedidos mais recentes.</p></div></div>
@@ -382,10 +386,10 @@
       <div class="card orders">${list.length?list.map(userOrderRow).join(""):empty("🥖","Não há pedidos com este estado.")}</div>`;
   }
   function userBalance(u){
-    const spent=userSpent(u.id),recharged=userRecharge(u.id),donated=userDonation(u.id),available=userAvailable(u.id),funds=u.monthlyBalance+recharged;
+    const spent=userSpent(u.id),recharged=userRecharge(u.id),deducted=userDeduction(u.id),donated=userDonation(u.id),available=userAvailable(u.id),funds=Number(u.monthlyBalance||0)+recharged;
     const tx=[...state.orders.filter(o=>o.type==="user"&&o.userId===u.id&&isThisMonth(o.date)&&afterBalanceReset(u.id,o.date)&&o.status!=="cancelled").map(o=>({date:o.date,label:`Pedido #${o.id}`,icon:"🛒",amount:-orderTotal(o)})),...state.recharges.filter(r=>r.userId===u.id&&isThisMonth(r.date)&&afterBalanceReset(u.id,r.date)).map(r=>({date:r.date,label:r.note,icon:"💰",amount:r.amount})),...(state.donationPledges||[]).filter(p=>p.userId===u.id&&isThisMonth(p.date)&&afterBalanceReset(u.id,p.date)).map(p=>({date:p.date,label:"Contribuição ao padeiro",icon:"🚗",amount:-Number(p.amount||0)}))].sort((a,b)=>new Date(b.date)-new Date(a.date));
     return `<div class="head" style="margin-top:2px"><div><h2>Meu saldo</h2><p>${monthName}</p></div><span style="font-size:43px">👛</span></div>
-      <div class="card balance"><div class="balance-top"><div><div class="label">Saldo disponível</div><div class="money">${fmt(available)} <small>MT</small></div></div><div class="wallet">💵</div></div><div class="split cols-4"><div><div class="label">Saldo mensal</div><div class="mini">${fmt(u.monthlyBalance)} MT</div></div><div><div class="label">Recargas</div><div class="mini available">+${fmt(recharged)} MT</div></div><div><div class="label">Compras</div><div class="mini spent">−${fmt(spent)} MT</div></div><div><div class="label">Ao padeiro</div><div class="mini donation-out">−${fmt(donated)} MT</div></div></div><div class="balance-equation">${fmt(u.monthlyBalance)} + ${fmt(recharged)} − ${fmt(spent)} − ${fmt(donated)} = <strong>${fmt(available)} MT</strong></div><div class="progress"><span style="width:${funds?Math.min(100,(spent+donated)/funds*100):100}%"></span></div></div>
+      <div class="card balance"><div class="balance-top"><div><div class="label">Saldo disponível</div><div class="money">${fmt(available)} <small>MT</small></div></div><div class="wallet">💵</div></div><div class="split cols-5"><div><div class="label">Saldo mensal</div><div class="mini">${fmt(u.monthlyBalance)} MT</div></div><div><div class="label">Recargas</div><div class="mini available">+${fmt(recharged)} MT</div></div><div><div class="label">Descontos</div><div class="mini spent">−${fmt(deducted)} MT</div></div><div><div class="label">Compras</div><div class="mini spent">−${fmt(spent)} MT</div></div><div><div class="label">Ao padeiro</div><div class="mini donation-out">−${fmt(donated)} MT</div></div></div><div class="balance-equation">${fmt(u.monthlyBalance)} + ${fmt(recharged)} − ${fmt(deducted)} − ${fmt(spent)} − ${fmt(donated)} = <strong>${fmt(available)} MT</strong></div><div class="progress"><span style="width:${balanceProgress(spent+deducted+donated,funds)}%"></span></div></div>
       <div class="card recharge-cta"><span>💸</span><div><strong>Precisas de mais mola?</strong><small>Escolhe o valor e copia o número para fazer a transferência.</small></div><button class="primary orange" id="openUserRecharge">QUERO RECARREGAR</button></div>
       <div class="head"><div><h3>Movimentos</h3><p>Entradas e saídas do mês.</p></div></div>
       <div class="card transactions">${tx.length?tx.map(t=>`<div class="tx"><div class="face">${t.icon}</div><div><strong>${t.label}</strong><small>${new Intl.DateTimeFormat("pt-PT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(t.date))}</small></div><div class="tx-value ${t.amount<0?"neg":"pos"}">${t.amount>0?"+":"−"} ${fmt(Math.abs(t.amount))} MT</div></div>`).join(""):empty("👛","Ainda não há movimentos.")}</div>`;
@@ -512,18 +516,42 @@
     const missing=receiptMissingPrices(dateKey);
     openModal(`<div class="receipt-modal"><div class="head" style="margin-top:0"><div><h3>Recibo diário</h3><p>Pedidos e gastos de cada pessoa.</p></div><span style="font-size:36px">🧾</span></div><div class="form-row"><label for="dailyReceiptDate">DIA DO RECIBO</label><input id="dailyReceiptDate" type="date" value="${dateKey}"></div>${receiptPricingEditor(dateKey)}${dailyReceiptBody(dateKey)}<div class="sheet-actions"><button class="secondary" data-close>Fechar</button><button class="primary orange" id="printDailyReceipt" data-date="${dateKey}" ${missing.length?"disabled":""}>${missing.length?"PREENCHE OS VALORES PRIMEIRO":"IMPRIMIR / GUARDAR PDF"}</button></div></div>`);
   }
-  function printDailyReceipt(dateKey){
-    const layer=document.createElement("div"),originalTitle=document.title;layer.id="printReceiptLayer";layer.innerHTML=dailyReceiptBody(dateKey);document.body.appendChild(layer);document.body.classList.add("printing-receipt");document.title=`Recibo diário — ${dateKey}`;
+  function printReceiptContent(content,title){
+    $("#printReceiptLayer")?.remove();
+    const layer=document.createElement("div"),originalTitle=document.title;layer.id="printReceiptLayer";layer.innerHTML=content;document.body.appendChild(layer);document.body.classList.add("printing-receipt");document.title=title;
     let cleaned=false;const cleanup=()=>{if(cleaned)return;cleaned=true;document.body.classList.remove("printing-receipt");layer.remove();document.title=originalTitle;window.removeEventListener("afterprint",cleanup)};
     window.addEventListener("afterprint",cleanup,{once:true});requestAnimationFrame(()=>window.print());setTimeout(cleanup,60000);
   }
+  function printDailyReceipt(dateKey){printReceiptContent(dailyReceiptBody(dateKey),`Recibo diário - ${dateKey}`)}
+  function balanceReceiptUsers(ids){const selected=new Set((ids||[]).map(Number));return state.users.filter(u=>!u.legacyHidden&&selected.has(Number(u.id))).sort(byName)}
+  function balanceReceiptBody(ids){
+    const users=balanceReceiptUsers(ids),issuedAt=new Date(),issuedLabel=new Intl.DateTimeFormat("pt-PT",{dateStyle:"long",timeStyle:"short",timeZone:"Africa/Maputo"}).format(issuedAt),totalAvailable=users.reduce((sum,u)=>sum+userAvailable(u.id),0),negativeCount=users.filter(u=>userAvailable(u.id)<0).length;
+    const rows=users.map(u=>{const monthly=Number(u.monthlyBalance||0),recharged=userRecharge(u.id),deducted=userDeduction(u.id),spent=userSpent(u.id),donated=userDonation(u.id),available=userAvailable(u.id);return `<section class="receipt-person balance-receipt-person"><div class="receipt-person-head"><div><span>${esc(u.avatar)}</span><strong>${esc(u.name)}</strong></div><b>${fmt(available)} MT</b></div><div class="balance-receipt-grid"><div><span>Saldo mensal</span><b>${fmt(monthly)} MT</b></div><div><span>Recargas</span><b class="receipt-positive">+ ${fmt(recharged)} MT</b></div><div><span>Descontos</span><b class="receipt-negative">- ${fmt(deducted)} MT</b></div><div><span>Compras</span><b class="receipt-negative">- ${fmt(spent)} MT</b></div><div><span>Contribuições</span><b class="receipt-negative">- ${fmt(donated)} MT</b></div><div class="balance-receipt-available"><span>Saldo disponível</span><b>${fmt(available)} MT</b></div></div><small class="balance-receipt-status">Conta ${u.active?"ativa":"bloqueada"}</small></section>`}).join("");
+    return `<div class="receipt-paper balance-receipt-paper"><div class="receipt-brand"><span>🍞</span><div><strong>O Pão de Cada Dia</strong><small>Recibo de saldos - ${esc(monthName)}</small></div></div><div class="receipt-summary"><div><span>Utilizadores</span><b>${users.length}</b></div><div><span>Saldo total</span><b>${fmt(totalAvailable)} MT</b></div><div><span>Saldos negativos</span><b>${negativeCount}</b></div></div>${rows}<div class="receipt-grand"><span>Saldo total selecionado</span><strong>${fmt(totalAvailable)} MT</strong></div><small class="receipt-note">Emitido em ${esc(issuedLabel)}, hora de Maputo. Valores do mês atual no momento da emissão; pedidos cancelados não são contabilizados.</small></div>`;
+  }
+  function refreshBalanceReceiptSelection(){
+    const boxes=$$("[data-balance-receipt-user]"),selected=boxes.filter(box=>box.checked).map(box=>Number(box.value)),selectAll=$("#balanceReceiptSelectAll"),button=$("#previewBalanceReceipt"),summary=$("#balanceReceiptSelectionSummary"),total=selected.reduce((sum,id)=>sum+userAvailable(id),0);
+    if(selectAll){selectAll.checked=boxes.length>0&&selected.length===boxes.length;selectAll.indeterminate=selected.length>0&&selected.length<boxes.length}
+    if(button)button.disabled=!selected.length;
+    if(summary)summary.textContent=selected.length?`${selected.length} ${selected.length===1?"utilizador selecionado":"utilizadores selecionados"} - Saldo total: ${fmt(total)} MT`:"Seleciona pelo menos um utilizador.";
+    return selected;
+  }
+  function balanceReceiptSelectionModal(selectedIds=null){
+    const users=state.users.filter(u=>!u.legacyHidden).sort(byName),selected=new Set((selectedIds===null?users.map(u=>u.id):selectedIds).map(Number));
+    openModal(`<div class="balance-receipt-modal"><div class="head" style="margin-top:0"><div><h3>Recibo de saldos</h3><p>Escolhe quem deve aparecer no PDF.</p></div><span style="font-size:36px" aria-hidden="true">🧾</span></div><label class="check-row balance-select-all"><input id="balanceReceiptSelectAll" type="checkbox" ${users.length&&users.every(u=>selected.has(u.id))?"checked":""}><span><strong>Selecionar todos</strong><small>Inclui ou remove todos os utilizadores da lista.</small></span></label><div class="balance-receipt-selector">${users.map(u=>`<label class="check-row"><input type="checkbox" data-balance-receipt-user value="${u.id}" ${selected.has(u.id)?"checked":""}><span><strong>${esc(u.avatar)} ${esc(u.name)}</strong><small>Saldo disponível: ${fmt(userAvailable(u.id))} MT</small></span></label>`).join("")}</div><div class="balance-selection-summary" id="balanceReceiptSelectionSummary" role="status" aria-live="polite"></div><div class="sheet-actions"><button class="secondary" data-close>Cancelar</button><button class="primary orange" id="previewBalanceReceipt">VER RECIBO</button></div></div>`);refreshBalanceReceiptSelection();
+  }
+  function balanceReceiptModal(ids){
+    const users=balanceReceiptUsers(ids);if(!users.length){balanceReceiptSelectionModal([]);return}const encodedIds=users.map(u=>u.id).join(",");
+    openModal(`<div class="receipt-modal"><div class="head" style="margin-top:0"><div><h3>Recibo de saldos</h3><p>Confirma os valores antes de guardar o PDF.</p></div><span style="font-size:36px" aria-hidden="true">🧾</span></div>${balanceReceiptBody(users.map(u=>u.id))}<div class="sheet-actions"><button class="secondary" id="editBalanceReceiptUsers" data-user-ids="${encodedIds}">ALTERAR SELEÇÃO</button><button class="primary orange" id="printBalanceReceipt" data-user-ids="${encodedIds}">IMPRIMIR / GUARDAR PDF</button></div></div>`);
+  }
+  function printBalanceReceipt(ids){printReceiptContent(balanceReceiptBody(ids),`Recibo de saldos - ${localDateKey()}`)}
   function adminProducts(){
     return `<div class="head" style="margin-top:2px"><div><h2>Produtos</h2><p>Menu, preços e disponibilidade.</p></div><button class="secondary" id="newProduct">+ Produto</button></div>
       <div class="card manage-list">${state.products.slice().sort(byName).map(p=>`<div class="manage-row"><div class="face">${esc(p.icon)}</div><div><strong>${esc(p.name)}</strong><small>${esc(p.category)} • ${p.price>0?`${fmt(p.price)} MT`:"Preço a confirmar"}${p.options?.length?" • Com opções":""} • ${p.active?"Ativo":"Oculto"}</small></div><div class="action-row"><button class="mini-btn" data-edit-product="${p.id}">Editar</button><button class="mini-btn ${p.active?"warn":"ok"}" data-toggle-product="${p.id}">${p.active?"Ocultar":"Ativar"}</button></div></div>`).join("")}</div>`;
   }
   function adminUsers(){
-    return `<div class="head" style="margin-top:2px"><div><h2>Utilizadores</h2><p>Contas e saldos mensais.</p></div><button class="secondary" id="newUser">+ Utilizador</button></div>
-      <div class="card manage-list">${state.users.filter(u=>!u.legacyHidden).sort(byName).map(u=>{const pinStatus=cloudPinStates.get(Number(u.id))||"loading",pinLabel={unset:"Sem PIN",pending:"PIN pendente",active:"PIN ativo",locked:"PIN bloqueado",blocked:"Conta bloqueada",loading:"A confirmar"}[pinStatus]||"Sem PIN";return `<div class="manage-row"><div class="face">${esc(u.avatar)}</div><div><strong>${esc(u.name)}</strong><small>Saldo: ${fmt(userAvailable(u.id))} MT • ${u.active?"Ativo":"Bloqueado"} • ${pinLabel}</small></div><div class="action-row">${pinStatus==="pending"?`<button class="mini-btn ok" data-approve-pin="${u.id}">Aprovar PIN</button>`:""}<button class="mini-btn" data-edit-user="${u.id}">Editar</button><button class="mini-btn ${u.active?"warn":"ok"}" data-toggle-user="${u.id}">${u.active?"Bloquear":"Ativar"}</button></div></div>`}).join("")}</div>`;
+    return `<div class="head" style="margin-top:2px"><div><h2>Utilizadores</h2><p>Contas e saldos mensais.</p></div><div class="action-row"><button class="secondary receipt-open" id="openBalanceReceipt">🧾 Recibo de saldos</button><button class="secondary" id="newUser">+ Utilizador</button></div></div>
+      <div class="card manage-list">${state.users.filter(u=>!u.legacyHidden).sort(byName).map(u=>{const pinStatus=cloudPinStates.get(Number(u.id))||"loading",pinLabel={unset:"Sem PIN",pending:"PIN pendente",active:"PIN ativo",locked:"PIN bloqueado",blocked:"Conta bloqueada",loading:"A confirmar"}[pinStatus]||"Sem PIN";return `<div class="manage-row"><div class="face">${esc(u.avatar)}</div><div><strong>${esc(u.name)}</strong><small>Saldo: ${fmt(userAvailable(u.id))} MT • ${u.active?"Ativo":"Bloqueado"} • ${pinLabel}</small></div><div class="action-row">${pinStatus==="pending"?`<button class="mini-btn ok" data-approve-pin="${u.id}">Aprovar PIN</button>`:""}<button class="mini-btn delete" data-deduct-user="${u.id}">Descontar saldo</button><button class="mini-btn" data-edit-user="${u.id}">Editar</button><button class="mini-btn ${u.active?"warn":"ok"}" data-toggle-user="${u.id}">${u.active?"Bloquear":"Ativar"}</button></div></div>`}).join("")}</div>`;
   }
   function adminSettings(){
     return `<div class="head" style="margin-top:2px"><div><h2>Gestão</h2><p>Configurações gerais.</p></div><span style="font-size:39px">⚙️</span></div>
@@ -532,7 +560,7 @@
       <div class="head"><div><h3>Segurança administrativa</h3><p>Troca o PIN usado para entrar no painel administrativo.</p></div></div>
       <div class="card campaign-settings"><div class="form-row"><label for="newAdminPin">NOVO PIN ADMINISTRATIVO</label><input id="newAdminPin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="4 a 8 números"></div><button class="primary dark" id="saveAdminPin">TROCAR PIN</button></div>
       <div class="head"><div><h3>Ações administrativas</h3><p>Ferramentas de saldo e deste aparelho.</p></div></div>
-      <div class="quick-grid"><button class="quick" id="adminRecharge"><span class="qicon">💰</span><strong>Adicionar recarga</strong><small>Creditar saldo a um utilizador.</small></button><button class="quick" id="resetDemo"><span class="qicon">♻️</span><strong>Limpar este aparelho</strong><small>Apagar apenas os dados locais.</small></button></div>`;
+      <div class="quick-grid"><button class="quick" id="adminRecharge"><span class="qicon">💰</span><strong>Adicionar recarga</strong><small>Creditar saldo a um utilizador.</small></button><button class="quick" id="adminDeduction"><span class="qicon">➖</span><strong>Diminuir saldo</strong><small>Registar um desconto no saldo atual.</small></button><button class="quick" id="resetDemo"><span class="qicon">♻️</span><strong>Limpar este aparelho</strong><small>Apagar apenas os dados locais.</small></button></div>`;
   }
 
   function render(){
@@ -590,13 +618,13 @@
   }
   function userModal(id=null){
     const u=id?user(id):{name:"",avatar:"🙂",pin:"",pinConfigured:false,monthlyBalance:500,active:true};
-    const pinStatus=id?(cloudPinStates.get(Number(id))||"loading"):"unset",pinReady=pinStatus==="active"||pinStatus==="locked",pinPending=pinStatus==="pending";
+    const pinStatus=id?(cloudPinStates.get(Number(id))||"loading"):"unset",pinReady=pinStatus==="active"||pinStatus==="locked",pinPending=pinStatus==="pending",minimumBalance=id?Math.max(0,Number(u.monthlyBalance||0)-userAvailable(id)):0;
     openModal(`<div class="head" style="margin-top:0"><div><h3>${id?"Editar utilizador":"Novo utilizador"}</h3><p>Conta e saldo mensal.</p></div><span style="font-size:34px">${esc(u.avatar)}</span></div>
       <div class="form-row"><label for="userName">NOME</label><input id="userName" value="${esc(u.name)}"></div>
       <div class="form-row"><label for="userAvatar">AVATAR</label><input id="userAvatar" value="${esc(u.avatar)}" maxlength="4"></div>
       <div class="first-pin-note ${pinReady?"ready":""}"><span>${pinReady?"🔐":pinPending?"🕐":"🆕"}</span><div><strong>${pinReady?"PIN sincronizado e ativo":pinPending?"PIN à espera de aprovação":"PIN ainda não definido"}</strong><small>${pinReady?"Funciona em todos os dispositivos.":pinPending?"Aprova na lista de utilizadores.":"A pessoa vai pedir o PIN no primeiro acesso."}</small></div></div>
       ${id&&(pinReady||pinPending)?`<button class="secondary reset-pin" id="resetUserPin" data-id="${u.id}">REINICIAR PIN</button>`:""}
-      <div class="form-row"><label for="userBalance">SALDO MENSAL (MT)</label><input id="userBalance" type="number" min="-1000000" value="${u.monthlyBalance}"></div>
+      <div class="form-row"><label for="userBalance">SALDO MENSAL (MT)</label><input id="userBalance" type="number" min="${minimumBalance}" max="1000000" value="${u.monthlyBalance}"><small class="field-hint">Mínimo atual: ${fmt(minimumBalance)} MT. Para retirar mola, usa “Descontar saldo”.</small></div>
       <div class="sheet-actions"><button class="secondary" data-close>Cancelar</button><button class="primary" id="saveUser" data-id="${id||""}">Guardar utilizador</button></div>`);
   }
   function rechargeModal(){
@@ -605,6 +633,22 @@
       <div class="form-row"><label for="rechargeAmount">VALOR (MT)</label><input id="rechargeAmount" type="number" min="1" placeholder="Ex.: 100"></div>
       <div class="form-row"><label for="rechargeNote">MOTIVO</label><input id="rechargeNote" value="Recarga extra"></div>
       <div class="sheet-actions"><button class="secondary" data-close>Cancelar</button><button class="primary" id="saveRecharge">Adicionar</button></div>`);
+  }
+  function deductionModal(selectedUserId=null){
+    pendingAdminDeduction=null;
+    const users=state.users.filter(u=>!u.legacyHidden).sort(byName),selected=users.find(u=>u.id===Number(selectedUserId))||users[0],available=selected?userAvailable(selected.id):0;
+    openModal(`<div class="head" style="margin-top:0"><div><h3>Diminuir saldo</h3><p>Registar uma saída no saldo do utilizador.</p></div><span style="font-size:34px" aria-hidden="true">➖</span></div>
+      <div class="form-row"><label for="deductionUser">UTILIZADOR</label><select id="deductionUser">${users.map(u=>`<option value="${u.id}" ${u.id===selected?.id?"selected":""}>${esc(u.avatar)} ${esc(u.name)}</option>`).join("")}</select></div>
+      <div class="first-pin-note"><span aria-hidden="true">👛</span><div><strong>Saldo disponível</strong><small id="deductionAvailable" aria-live="polite">${fmt(available)} MT disponíveis. O saldo não pode ficar negativo.</small></div></div>
+      <div class="form-row"><label for="deductionAmount">VALOR A DESCONTAR (MT)</label><input id="deductionAmount" type="number" min="1" max="${Math.max(0,available)}" step="1" inputmode="numeric" placeholder="Ex.: 25"></div>
+      <div class="form-row"><label for="deductionNote">MOTIVO</label><input id="deductionNote" maxlength="200" value="Desconto administrativo"></div>
+      <div class="sheet-actions"><button class="secondary" data-close>Cancelar</button><button class="primary orange" id="saveDeduction" ${available<=0?"disabled":""}>DESCONTAR SALDO</button></div>`);
+  }
+  function refreshDeductionPreview(){
+    const uid=Number($("#deductionUser")?.value),input=$("#deductionAmount"),button=$("#saveDeduction"),output=$("#deductionAvailable"),available=user(uid)?userAvailable(uid):0,amount=Number(input?.value||0),valid=Number.isInteger(amount)&&amount>0&&amount<=available;
+    if(input){input.max=String(Math.max(0,available));input.removeAttribute("aria-invalid")}
+    if(output)output.textContent=amount>0?`${fmt(available)} MT → ${fmt(available-amount)} MT depois do desconto.`:`${fmt(available)} MT disponíveis. O saldo não pode ficar negativo.`;
+    if(button)button.disabled=!valid;
   }
   function userRechargeModal(value=""){
     openModal(`<div class="head" style="margin-top:0"><div><h3>Quero recarregar</h3><p>Escolhe quanta mola queres colocar no teu saldo.</p></div><span style="font-size:36px">💸</span></div>
@@ -666,6 +710,10 @@
     const schedule=e.target.closest("[data-order-schedule]");if(schedule){orderSchedule=schedule.dataset.orderSchedule;renderWithFocus(`[data-order-schedule="${orderSchedule}"]`);return}
     if(e.target.id==="clearAdminOrderDate"){adminOrderDate="";renderWithFocus("#adminOrderDate");return}
     const customToggle=e.target.closest("[data-toggle-custom]");if(customToggle){const mode=customToggle.dataset.toggleCustom;customOpen[mode]=!customOpen[mode];renderWithFocus(`[data-toggle-custom="${mode}"]`);return}
+    if(e.target.id==="openBalanceReceipt"){balanceReceiptSelectionModal();return}
+    if(e.target.id==="previewBalanceReceipt"){balanceReceiptModal(refreshBalanceReceiptSelection());return}
+    if(e.target.id==="editBalanceReceiptUsers"){balanceReceiptSelectionModal((e.target.dataset.userIds||"").split(",").filter(Boolean).map(Number));return}
+    if(e.target.id==="printBalanceReceipt"){printBalanceReceipt((e.target.dataset.userIds||"").split(",").filter(Boolean).map(Number));return}
     if(e.target.closest("#openDailyReceipt")){dailyReceiptModal();return}
     if(e.target.id==="saveReceiptPrices"){const dateKey=e.target.dataset.date;if(saveReceiptPrices(dateKey)){dailyReceiptModal(dateKey);toast("Valores guardados. O recibo já está pronto para imprimir. 🧾")}return}
     if(e.target.id==="printDailyReceipt"){printDailyReceipt(e.target.dataset.date);return}
@@ -737,12 +785,16 @@
     }
     if(e.target.id==="newUser"){userModal();return}
     const eu=e.target.closest("[data-edit-user]");if(eu){userModal(Number(eu.dataset.editUser));return}
-    const tu=e.target.closest("[data-toggle-user]");if(tu){const u=user(tu.dataset.toggleUser);u.active=!u.active;u.updatedAt=new Date().toISOString();save();await syncAdminOperational();render();return}
+    const tu=e.target.closest("[data-toggle-user]");if(tu){const u=user(tu.dataset.toggleUser),previous=structuredClone(u);u.active=!u.active;u.updatedAt=new Date().toISOString();const synced=await syncAdminOperational();if(!synced){Object.assign(u,previous);toast("Não deu para atualizar este utilizador no servidor.");return}save();render();return}
     if(e.target.id==="saveUser"){
-      const id=Number(e.target.dataset.id),name=$("#userName").value.trim(),avatar=$("#userAvatar").value.trim()||"🙂",monthlyBalance=Number($("#userBalance").value);
-      if(!name||monthlyBalance<-1000000){toast("Preenche os dados corretamente.");return}
-      const uid=id||Math.max(0,...state.users.map(u=>u.id))+1;if(id){Object.assign(user(id),{name,avatar,monthlyBalance})}else state.users.push({id:uid,name,avatar,pin:"",pinConfigured:false,monthlyBalance,active:true});
-      const cloudSaved=await cloudRpc("admin_upsert_app_user",{p_admin_pin:cloudCredentials.adminPin,p_user_id:uid,p_user_name:name,p_avatar:avatar}).catch(()=>false);if(!cloudSaved){toast("Não deu para guardar este utilizador no servidor.");return}const savedUser=user(uid);if(savedUser)savedUser.updatedAt=new Date().toISOString();cloudPinStates.set(uid,cloudPinStates.get(uid)||"unset");save();await syncAdminOperational();closeModal();render();toast("Utilizador e saldo guardados em todos os dispositivos.");return;
+      const id=Number(e.target.dataset.id),name=$("#userName").value.trim(),avatar=$("#userAvatar").value.trim()||"🙂",monthlyBalance=Number($("#userBalance").value),existing=id?user(id):null;
+      if(!name||!Number.isFinite(monthlyBalance)||monthlyBalance<0||monthlyBalance>1000000){toast("Preenche os dados corretamente.");return}
+      if(existing&&userAvailable(id)-Number(existing.monthlyBalance||0)+monthlyBalance<0){toast("Esse saldo mensal deixaria a conta negativa. Usa a ação de desconto ou escolhe um valor maior.");return}
+      const uid=id||Math.max(0,...state.users.map(u=>u.id))+1,previous=existing?structuredClone(existing):null;
+      const cloudSaved=await cloudRpc("admin_upsert_app_user",{p_admin_pin:cloudCredentials.adminPin,p_user_id:uid,p_user_name:name,p_avatar:avatar}).catch(()=>false);if(!cloudSaved){toast("Não deu para guardar este utilizador no servidor.");return}
+      if(existing)Object.assign(existing,{name,avatar,monthlyBalance,updatedAt:new Date().toISOString()});else state.users.push({id:uid,name,avatar,pin:"",pinConfigured:false,monthlyBalance,active:true,updatedAt:new Date().toISOString()});
+      const synced=await syncAdminOperational();if(!synced){if(previous)Object.assign(existing,previous);else state.users=state.users.filter(u=>u.id!==uid);await hydrateAdminOperational();toast("O utilizador foi criado, mas não deu para sincronizar o saldo. Tenta novamente.");return}
+      cloudPinStates.set(uid,cloudPinStates.get(uid)||"unset");save();closeModal();render();toast("Utilizador e saldo guardados em todos os dispositivos.");return;
     }
     if(e.target.id==="resetUserPin"){
       const u=user(e.target.dataset.id);if(!u)return;
@@ -763,17 +815,29 @@
       if(pledge?.orderId||pledge?.orderSyncKey){const order=state.orders.find(o=>Number(o.id)===Number(pledge.orderId)||o.syncKey===pledge.orderSyncKey);if(order){order.guestDonation=0;order.updatedAt=new Date().toISOString()}}
       state.donationPledges=state.donationPledges.filter(p=>p.id!==Number(removePledge.dataset.removePledge));save();if(pledge?.syncKey)await cloudRpc("admin_delete_donation",{p_admin_pin:cloudCredentials.adminPin,p_sync_key:pledge.syncKey}).catch(()=>false);await syncAdminOperational();render();toast(pledge?.userId?"Contribuição removida e saldo devolvido.":pledge?.orderId?"Contribuição removida do pedido.":"Contribuição diária removida.");return;
     }
+    const deductUser=e.target.closest("[data-deduct-user]");if(deductUser){deductionModal(Number(deductUser.dataset.deductUser));return}
     if(e.target.id==="adminRecharge"){rechargeModal();return}
+    if(e.target.id==="adminDeduction"){deductionModal();return}
     if(e.target.id==="saveRecharge"){
       const amount=Number($("#rechargeAmount").value),uid=Number($("#rechargeUser").value),note=$("#rechargeNote").value.trim()||"Recarga";
-      if(amount<=0){toast("Mete uma mola válida, boss.");return}
-      const recharge={id:Date.now(),userId:uid,date:new Date().toISOString(),amount,note,pendingSync:true};
+      if(!Number.isFinite(amount)||amount<=0||amount>1000000||!user(uid)){toast("Mete uma mola válida, boss.");return}
+      const button=e.target;button.disabled=true;button.textContent="A GUARDAR...";
+      const recharge={id:Date.now(),userId:uid,date:new Date().toISOString(),amount,note,pendingSync:false};
       recharge.syncKey=stableSyncKey("recharge",recharge);
-      state.recharges.unshift(recharge);
-      save();
       const synced=await submitAdminRecharge(recharge);
-      toast(synced?.ok?"Mola adicionada e sincronizada em todos os dispositivos. Está nice!":"Mola guardada neste aparelho. A sincronização será repetida automaticamente.");
-      closeModal();render();return;
+      if(!synced?.ok){button.disabled=false;button.textContent="Adicionar";toast("Não foi possível adicionar a recarga no servidor. Nada foi alterado.");return}
+      state.recharges.unshift(recharge);save();closeModal();render();toast("Mola adicionada e sincronizada em todos os dispositivos. Está nice!");return;
+    }
+    if(e.target.id==="saveDeduction"){
+      const uid=Number($("#deductionUser").value),amount=Number($("#deductionAmount").value),note=$("#deductionNote").value.trim()||"Desconto administrativo",available=user(uid)?userAvailable(uid):0,input=$("#deductionAmount");
+      if(!user(uid)||!Number.isInteger(amount)||amount<=0||amount>available){input?.setAttribute("aria-invalid","true");input?.focus();toast(amount>available?`Só podes descontar até ${fmt(available)} MT.`:"Mete um valor inteiro válido para descontar.");return}
+      const button=e.target;button.disabled=true;button.textContent="A DESCONTAR...";
+      const fingerprint=`${uid}:${amount}:${note}`;
+      if(!pendingAdminDeduction||pendingAdminDeduction.fingerprint!==fingerprint){const movement={id:Date.now(),userId:uid,date:new Date().toISOString(),amount:-amount,note,pendingSync:false};movement.syncKey=stableSyncKey("balance-deduction",movement);pendingAdminDeduction={fingerprint,movement}}
+      const movement=pendingAdminDeduction.movement;
+      const result=await submitAdminDeduction(movement);
+      if(!result?.ok){button.disabled=false;button.textContent="DESCONTAR SALDO";if(result?.reason==="insufficient"){pendingAdminDeduction=null;await hydrateAdminOperational();refreshDeductionPreview();toast(`O saldo mudou noutro dispositivo. Disponível agora: ${fmt(Number(result.available||0))} MT.`)}else toast("Não foi possível diminuir o saldo. Nada foi alterado. Podes tentar novamente.");return}
+      pendingAdminDeduction=null;movement.id=Number(result.id)||movement.id;movement.date=result.date||movement.date;movement.amount=Number(result.amount)||-amount;movement.updatedAt=movement.date;state.recharges.unshift(movement);save();await hydrateAdminOperational();closeModal();render();toast(`Saldo de ${user(uid)?.name||"utilizador"} diminuído para ${fmt(Number(result.available))} MT.`);return;
     }
     if(e.target.id==="resetDemo"){resetSystemConfirmModal();return}
     if(e.target.id==="confirmSystemReset"){closeModal();reset();toast("Dados locais limpos. Os dados partilhados no Supabase foram preservados. ♻️");return}
@@ -782,6 +846,8 @@
   document.addEventListener("input",e=>{
     if(e.target.id==="adminGuestName"||e.target.id==="adminGuestPhone"){e.target.removeAttribute("aria-invalid");const error=$(e.target.id==="adminGuestName"?"#adminGuestNameError":"#adminGuestPhoneError");if(error)error.hidden=true}
     if(e.target.id==="userRechargeAmount")e.target.removeAttribute("aria-invalid");
+    if(e.target.id==="deductionAmount"){pendingAdminDeduction=null;refreshDeductionPreview();return}
+    if(e.target.id==="deductionNote"){pendingAdminDeduction=null;return}
     if(e.target.matches("[data-custom-mode]")){const mode=e.target.dataset.customMode;if(mode==="admin")adminCustomRequest=e.target.value;else customRequest=e.target.value;refreshCheckout(mode);return}
     if(e.target.id==="adminCustomRequest"){adminCustomRequest=e.target.value;refreshAdminOrderSummary();return}
     if(e.target.matches("[data-order-price]")){const total=$$("[data-order-price]").reduce((sum,input)=>sum+(Math.max(0,Number(input.value)||0)*Number(input.dataset.qty||1)),0)+Number($("#editableOrderTotal")?.dataset.donation||0),output=$("#editableOrderTotal");if(output)output.textContent=`${fmt(total)} MT`;return}
@@ -789,8 +855,11 @@
   document.addEventListener("change",e=>{
     if(e.target.id==="loginUser"){refreshLoginPinFields();return}
     if(e.target.id==="dailyReceiptDate"){dailyReceiptModal(e.target.value||localDateKey());return}
+    if(e.target.id==="balanceReceiptSelectAll"){$$("[data-balance-receipt-user]").forEach(box=>{box.checked=e.target.checked});refreshBalanceReceiptSelection();return}
+    if(e.target.matches("[data-balance-receipt-user]")){refreshBalanceReceiptSelection();return}
     if(e.target.id==="adminOrderDate"){adminOrderDate=e.target.value;renderWithFocus("#adminOrderDate");return}
     if(e.target.id==="adminOrderType"){const guest=e.target.value==="guest";$("#adminRegisteredTarget").hidden=guest;$("#adminGuestTarget").hidden=!guest;return}
+    if(e.target.id==="deductionUser"){pendingAdminDeduction=null;refreshDeductionPreview();return}
     if(e.target.matches("[data-product-option]")){const mode=e.target.dataset.cartMode,store=choiceStore(mode),id=e.target.dataset.productOption,key=e.target.dataset.optionKey;if(!store[id])store[id]={};store[id][key]=e.target.value;if(mode==="admin"){const row=e.target.closest("[data-admin-product-row]"),price=$(".price",row);if(price)price.textContent=selectedUnitPrice(product(id),mode)>0?`${fmt(selectedUnitPrice(product(id),mode))} MT`:"Preço a confirmar";refreshAdminOrderSummary();return}renderWithFocus(`[data-product-option="${id}"][data-option-key="${key}"][data-cart-mode="${mode}"]`)}
   });
   $("#modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
@@ -806,7 +875,7 @@
   async function refreshOperationalState(){if(cloudRefreshBusy||document.hidden)return;cloudRefreshBusy=true;try{let refreshed=false;if(state.session.mode==="user"&&cloudCredentials.userPin){const sessionStatus=await userSessionStatus(state.session.userId,cloudCredentials.userPin);if(sessionStatus==="blocked"){logout();toast("A tua conta foi bloqueada pelo administrador.");return}if(sessionStatus!=="ok")return;await syncUserOperational(state.session.userId,cloudCredentials.userPin);refreshed=await hydrateUserOperational(state.session.userId,cloudCredentials.userPin)}else if(state.session.mode==="admin"&&cloudCredentials.adminPin){await syncAdminOperational();refreshed=await hydrateAdminOperational()}else{refreshed=await hydratePublicBootstrap()}if(refreshed&&!$("#modal").classList.contains("open"))render()}finally{cloudRefreshBusy=false}}
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)void refreshOperationalState()});
   setInterval(refreshOperationalState,20000);
-  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=73").catch(()=>{});}
+  if("serviceWorker" in navigator && location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js?v=75").catch(()=>{});}
   render();
   hydratePublicBootstrap().then(ok=>{if(ok&&!state.session.mode)render()});
 })();

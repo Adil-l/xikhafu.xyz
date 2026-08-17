@@ -11,9 +11,21 @@ const chromePath = process.env.CHROME_PATH || "/Applications/Google Chrome.app/C
     ...(fs.existsSync(chromePath) ? { executablePath: chromePath } : {})
   });
   const page = await browser.newPage();
+  await page.addInitScript(() => {
+    window.setInterval = () => 0;
+    window.print = () => { window.__printCalls = (window.__printCalls || 0) + 1; };
+  });
   let submitUserOrderResponse = { ok: true, id: 902, status: "pending" };
+  let adminDeductionResponse = { ok: true, id: 903, amount: -10, available: 15 };
+  let adminDeductionRequest = null;
+  let adminDeductionCalls = 0;
   await page.route("**/rest/v1/rpc/**", async route => {
     const functionName = new URL(route.request().url()).pathname.split("/").pop();
+    if (functionName === "admin_deduct_balance") {
+      adminDeductionCalls += 1;
+      adminDeductionRequest = route.request().postDataJSON();
+      if (adminDeductionResponse.ok) adminDeductionResponse = { ...adminDeductionResponse, date: new Date().toISOString() };
+    }
     const emptyAdminState = { users: [], products: [], orders: [], recharges: [], donations: [], settings: { balancePolicy: "block" } };
     const responses = {
       load_admin_operational_state: emptyAdminState,
@@ -22,6 +34,7 @@ const chromePath = process.env.CHROME_PATH || "/Applications/Google Chrome.app/C
       user_pin_status: "active",
       verify_user_pin: "ok",
       admin_add_recharge: { ok: true, id: 901, date: new Date().toISOString() },
+      admin_deduct_balance: adminDeductionResponse,
       admin_sync_operational_state: true,
       sync_user_operational_state: true,
       admin_upsert_app_user: true,
@@ -49,6 +62,42 @@ const chromePath = process.env.CHROME_PATH || "/Applications/Google Chrome.app/C
   const syncedRecharge = await page.evaluate(() => JSON.parse(localStorage.getItem("paoCadaDiaUnifiedV3")).recharges.find(recharge => recharge.amount === 25));
   assert.ok(syncedRecharge, "A recarga administrativa não foi guardada");
   assert.equal(syncedRecharge.pendingSync, false, "A recarga administrativa não foi sincronizada pela RPC dedicada");
+  await page.locator("#adminDeduction").click();
+  await page.locator("#deductionAmount").fill("10");
+  await page.getByText(/25 MT → 15 MT depois do desconto/i).waitFor();
+  await page.locator("#saveDeduction").click();
+  await page.locator("#modal").waitFor({ state: "hidden" });
+  assert.equal(adminDeductionCalls, 1, "O desconto não chamou a RPC exatamente uma vez");
+  assert.equal(adminDeductionRequest.payload.userId, 1, "O desconto foi enviado para o utilizador errado");
+  assert.equal(adminDeductionRequest.payload.amount, 10, "O valor do desconto enviado está incorreto");
+  const syncedDeduction = await page.evaluate(() => JSON.parse(localStorage.getItem("paoCadaDiaUnifiedV3")).recharges.find(movement => movement.amount === -10));
+  assert.ok(syncedDeduction, "O desconto confirmado não foi guardado no histórico local");
+  assert.equal(syncedDeduction.pendingSync, false, "O desconto confirmado ficou marcado como pendente");
+
+  await page.locator("#adminDeduction").click();
+  const availableAfterDeduction = await page.locator("#deductionAvailable").textContent();
+  assert.match(availableAfterDeduction, /15 MT/, `O saldo do segundo desconto não foi atualizado: ${availableAfterDeduction}`);
+  await page.locator("#deductionAmount").fill("16");
+  assert.equal(await page.locator("#saveDeduction").isDisabled(), true, "Um desconto superior ao saldo não foi bloqueado");
+  assert.equal(adminDeductionCalls, 1, "O desconto inválido chamou o servidor");
+  await page.getByRole("button", { name: "Fechar janela" }).click();
+
+  adminDeductionResponse = { ok: false, reason: "server_error" };
+  await page.locator("#adminDeduction").click();
+  await page.locator("#deductionAmount").fill("5");
+  await page.locator("#saveDeduction").click();
+  await page.getByText(/Nada foi alterado/i).waitFor();
+  assert.equal(await page.locator("#modal").getAttribute("aria-hidden"), "false", "O modal fechou depois da falha do servidor");
+  const deductionsAfterFailure = await page.evaluate(() => JSON.parse(localStorage.getItem("paoCadaDiaUnifiedV3")).recharges.filter(movement => movement.amount < 0).length);
+  assert.equal(deductionsAfterFailure, 1, "Uma falha do servidor alterou o saldo local");
+  const failedSyncKey = adminDeductionRequest.payload.syncKey;
+  adminDeductionResponse = { ok: true, id: 904, amount: -5, available: 10 };
+  await page.locator("#saveDeduction").click();
+  await page.locator("#modal").waitFor({ state: "hidden" });
+  assert.equal(adminDeductionCalls, 3, "A repetição do desconto não chamou o servidor");
+  assert.equal(adminDeductionRequest.payload.syncKey, failedSyncKey, "A repetição não reutilizou a chave idempotente");
+  const deductionsAfterRetry = await page.evaluate(() => JSON.parse(localStorage.getItem("paoCadaDiaUnifiedV3")).recharges.filter(movement => movement.amount < 0).length);
+  assert.equal(deductionsAfterRetry, 2, "O desconto confirmado na repetição não foi guardado");
   await page.getByRole("button", { name: "Pedidos" }).click();
   await page.locator("#newAdminOrder").click();
   assert.equal(await page.locator("#adminOrderType").count(), 1, "O formulário de pedido administrativo não abriu");
@@ -72,6 +121,23 @@ const chromePath = process.env.CHROME_PATH || "/Applications/Google Chrome.app/C
   const dilmaRow = page.locator(".manage-row").filter({ hasText: "Dilma Lineco" });
   await dilmaRow.getByText(/Saldo: 0 MT/).waitFor();
   const adilsonRow = page.locator(".manage-row").filter({ hasText: "Adilson Gavumende" });
+  await adilsonRow.getByText(/Saldo: 10 MT/).waitFor();
+  await page.locator("#openBalanceReceipt").click();
+  await page.locator("#balanceReceiptSelectAll").uncheck();
+  assert.equal(await page.locator("#previewBalanceReceipt").isDisabled(), true, "O recibo permitiu continuar sem utilizadores");
+  await page.locator('[data-balance-receipt-user][value="1"]').check();
+  await page.locator('[data-balance-receipt-user][value="15"]').check();
+  await page.getByText(/2 utilizadores selecionados.*Saldo total: 10 MT/i).waitFor();
+  await page.locator("#previewBalanceReceipt").click();
+  assert.equal(await page.locator("#modal .balance-receipt-person").count(), 2, "O recibo não respeitou a seleção de utilizadores");
+  await page.locator("#modal .balance-receipt-person").filter({ hasText: "Adilson Gavumende" }).getByText(/10 MT/).first().waitFor();
+  await page.locator("#modal .balance-receipt-person").filter({ hasText: "Dilma Lineco" }).getByText(/0 MT/).first().waitFor();
+  await page.locator("#printBalanceReceipt").click();
+  await page.waitForFunction(() => window.__printCalls === 1);
+  assert.equal(await page.locator("#printReceiptLayer .balance-receipt-person").count(), 2, "A camada de impressão perdeu utilizadores selecionados");
+  await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+  assert.equal(await page.locator("#printReceiptLayer").count(), 0, "A camada de impressão não foi limpa");
+  await page.getByRole("button", { name: "Fechar janela" }).click();
   await adilsonRow.getByRole("button", { name: "Editar" }).click();
   await page.locator("#userBalance").fill("100");
   await page.locator("#saveUser").click();
